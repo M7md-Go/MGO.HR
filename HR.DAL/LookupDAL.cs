@@ -288,6 +288,45 @@ namespace HR.DAL
             }
         }
 
+
+        /// <summary>Loads all rows of one lookup table for the management screen.</summary>
+        public static System.Collections.Generic.List<LookupRow> GetLookupRows(LookupTable table, bool includeInactive)
+        {
+            System.Collections.Generic.List<LookupRow> rows = new System.Collections.Generic.List<LookupRow>();
+            bool hasParent = HasParentColumn(table);
+            bool hasActive = table != LookupTable.Qualifications && table != LookupTable.EmployeeStatus;
+            string sql = "SELECT " + IdColumn(table) + ", " + CodeColumn(table) + ", " + NameColumn(table) +
+                         (hasParent ? ", " + ParentColumn(table) : ", NULL") +
+                         (hasActive ? ", IsActive" : ", NULL") +
+                         " FROM " + TableName(table) + " WHERE 1 = 1";
+            List<OleDbParameter> parameters = new List<OleDbParameter>();
+            if (!includeInactive && hasActive)
+            {
+                sql = sql + " AND IsActive = 1";
+            }
+            sql = sql + " ORDER BY " + CodeColumn(table);
+            rows = Db.ReadList(sql,
+                delegate(OleDbDataReader reader)
+                {
+                    LookupRow row = new LookupRow();
+                    row.Id = reader.GetInt32(0);
+                    row.Code = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    row.Name = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    row.ParentId = reader.IsDBNull(3) ? (int?)null : Convert.ToInt32(reader.GetValue(3));
+                    if (hasActive)
+                    {
+                        row.IsActive = reader.GetBoolean(4);
+                    }
+                    else
+                    {
+                        row.IsActive = true;
+                    }
+                    return row;
+                },
+                parameters.ToArray());
+            return rows;
+        }
+
         /// <summary>Reads (Code, Name, ParentId) of one lookup row; null when missing.</summary>
         public static LookupRow GetLookup(LookupTable table, int id)
         {

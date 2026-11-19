@@ -23,6 +23,12 @@ namespace HR.BLL
         public static List<Qualification> Qualifications() { return LookupDAL.GetQualifications(); }
         public static List<EmployeeStatus> EmployeeStatuses() { return LookupDAL.GetEmployeeStatuses(); }
 
+        /// <summary>Loads generic rows of one lookup table for the management screen.</summary>
+        public static List<LookupRow> Rows(LookupTable table, bool includeInactive)
+        {
+            return LookupDAL.GetLookupRows(table, includeInactive);
+        }
+
         // ---------------- writing ----------------
 
         public static void Create(LookupTable table, string code, string name, int? parentId, bool isActive)

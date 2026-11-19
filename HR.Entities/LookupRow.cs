@@ -14,5 +14,8 @@ namespace HR.Entities
 
         /// <summary>Parent column value (when the table has a parent), otherwise null.</summary>
         public int? ParentId { get; set; }
+
+        /// <summary>Active flag when the table has an IsActive column, otherwise null.</summary>
+        public bool? IsActive { get; set; }
     }
 }
