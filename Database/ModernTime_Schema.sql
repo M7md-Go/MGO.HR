@@ -498,7 +498,7 @@ ALTER TABLE EmployeeHistory ADD CONSTRAINT FK_Hist_Emp FOREIGN KEY (EmployeeId) 
 
 CREATE INDEX IX_LogTime     ON FingerprintLogs (LogTime);
 CREATE INDEX IX_LogEmpDate  ON FingerprintLogs (EmployeeId, LogTime);
-CREATE INDEX IX_Emp_Enroll  ON Employees (DeviceEnrollNumber) WITH DISALLOW NULL;
+CREATE UNIQUE INDEX IX_Emp_Enroll ON Employees (DeviceEnrollNumber);
 CREATE INDEX IX_Emp_Dept    ON Employees (DepartmentId);
 CREATE INDEX IX_Emp_Name    ON Employees (FullNameAr);
 CREATE INDEX IX_Emp_Status  ON Employees (Status, IsDeleted);
@@ -537,7 +537,8 @@ INSERT INTO Roles (RoleName, IsAdmin)
 VALUES ('Admin', 1), ('Supervisor', 0), ('User', 0);
 
 INSERT INTO Permissions (PermissionKey, DescriptionAr)
-VALUES ('Employees.Add', 'إضافة موظف'),
+VALUES ('Org.Manage', 'إدارة الهيكل التنظيمي'),
+       ('Employees.Add', 'إضافة موظف'),
        ('Employees.Edit', 'تعديل موظف'),
        ('Employees.Delete', 'حذف موظف'),
        ('Employees.Archive', 'أرشفة موظف'),
