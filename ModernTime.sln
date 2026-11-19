@@ -1,0 +1,37 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.Entities", "HR.Entities\HR.Entities.csproj", "{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.Helpers", "HR.Helpers\HR.Helpers.csproj", "{8270F338-F987-4C9F-AB2A-6B12B203CAA6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.DAL", "HR.DAL\HR.DAL.csproj", "{EAB36D0F-D9B1-4439-9343-1356A4560339}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.BLL", "HR.BLL\HR.BLL.csproj", "{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}.Debug|x86.Build.0 = Debug|AnyCPU
+		{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}.Release|x86.ActiveCfg = Release|AnyCPU
+		{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}.Release|x86.Build.0 = Release|AnyCPU
+		{8270F338-F987-4C9F-AB2A-6B12B203CAA6}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{8270F338-F987-4C9F-AB2A-6B12B203CAA6}.Debug|x86.Build.0 = Debug|AnyCPU
+		{8270F338-F987-4C9F-AB2A-6B12B203CAA6}.Release|x86.ActiveCfg = Release|AnyCPU
+		{8270F338-F987-4C9F-AB2A-6B12B203CAA6}.Release|x86.Build.0 = Release|AnyCPU
+		{EAB36D0F-D9B1-4439-9343-1356A4560339}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{EAB36D0F-D9B1-4439-9343-1356A4560339}.Debug|x86.Build.0 = Debug|AnyCPU
+		{EAB36D0F-D9B1-4439-9343-1356A4560339}.Release|x86.ActiveCfg = Release|AnyCPU
+		{EAB36D0F-D9B1-4439-9343-1356A4560339}.Release|x86.Build.0 = Release|AnyCPU
+		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Debug|x86.Build.0 = Debug|AnyCPU
+		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Release|x86.ActiveCfg = Release|AnyCPU
+		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Release|x86.Build.0 = Release|AnyCPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
