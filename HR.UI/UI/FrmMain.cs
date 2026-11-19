@@ -59,7 +59,7 @@ namespace HR.UI.UI
             miEmployees.Click += delegate { ShowForm(new FrmEmployees()); };
             miOrg.Click += delegate { ShowForm(new FrmLookupManager()); };
             miShifts.Click += delegate { ShowForm(new FrmShifts()); };
-            miMonthly.Click += delegate { ShowPhaseNotice(5); };
+            miMonthly.Click += delegate { ShowForm(new FrmMonthlySchedule()); };
             miFingerprint.Click += delegate { ShowPhaseNotice(6); };
             miDashboard.Click += delegate { ShowPhaseNotice(11); };
             miReports.Click += delegate { ShowPhaseNotice(9); };
