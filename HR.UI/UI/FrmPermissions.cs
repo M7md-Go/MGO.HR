@@ -85,7 +85,7 @@ namespace HR.UI.UI
             rolePane.Controls.Add(_gridRole);
             rolePane.Controls.Add(roleBar);
 
-            Panel userBar = new FlowLayoutPanel();
+            FlowLayoutPanel userBar = new FlowLayoutPanel();
             userBar.Dock = DockStyle.Top;
             userBar.Height = 46;
             userBar.FlowDirection = FlowDirection.RightToLeft;

@@ -1028,16 +1028,16 @@ namespace HR.UI.UI
                     Dictionary<int, int> days = RowCells(employee.EmployeeId);
                     for (int day = 1; day <= dayLimit; day++)
                     {
-                        int? shiftId;
+                        int shiftId;
                         if (!previousDays.TryGetValue(day, out shiftId))
                         {
                             continue;
                         }
-                        if (!_data.Shifts.ContainsKey(shiftId.Value))
+                        if (!_data.Shifts.ContainsKey(shiftId))
                         {
                             continue;
                         }
-                        days[day] = shiftId.Value;
+                        days[day] = shiftId;
                         copied++;
                     }
                 }
