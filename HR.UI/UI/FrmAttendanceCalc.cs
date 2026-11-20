@@ -232,6 +232,8 @@ namespace HR.UI.UI
                 AddColumn("Status", "الحالة", 90);
                 AddColumn("MinutesWorked", "دقائق العمل", 80);
                 AddColumn("OvertimeMin", "دقائق إضافية", 80);
+                AddColumn("LateMinutes", "دقائق التأخير", 80);
+                AddColumn("EarlyLeaveMinutes", "دقائق الإنصراف المبكر", 80);
                 AddColumn("IsManuallyChg", "تصحيح يدوي", 80);
 
                 int lateCount = 0;
@@ -253,6 +255,8 @@ namespace HR.UI.UI
                     gridRow.Cells["Status"].Value = status;
                     gridRow.Cells["MinutesWorked"].Value = row.MinutesWorked;
                     gridRow.Cells["OvertimeMin"].Value = row.OvertimeMin;
+                    gridRow.Cells["LateMinutes"].Value = (row.LateMinutes ?? 0) > 0 ? (object)row.LateMinutes : null;
+                    gridRow.Cells["EarlyLeaveMinutes"].Value = (row.EarlyLeaveMinutes ?? 0) > 0 ? (object)row.EarlyLeaveMinutes : null;
                     gridRow.Cells["IsManuallyChg"].Value = row.IsManuallyChg == true ? "نعم" : "لا";
                     if (row.IsManuallyChg == true)
                     {

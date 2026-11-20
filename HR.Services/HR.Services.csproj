@@ -42,6 +42,10 @@
       <Project>{27625e45-7f8e-4904-9eed-c6d3afa4ae74}</Project>
       <Name>HR.Entities</Name>
     </ProjectReference>
+    <ProjectReference Include="..\HR.DAL\HR.DAL.csproj">
+      <Project>{eab36d0f-d9b1-4439-9343-1356a4560339}</Project>
+      <Name>HR.DAL</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />

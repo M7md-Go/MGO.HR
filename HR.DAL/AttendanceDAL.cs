@@ -62,9 +62,12 @@ namespace HR.DAL
         {
             StringBuilder sql = new StringBuilder(
                 "SELECT TOP " + maxRows + " a.AttendanceId, a.EmployeeId, e.EmployeeCode, e.FullNameAr, a.AttDate, " +
-                "a.ShiftId, s.ShiftCode, a.StartTime, a.EndTime, a.Status, a.IsManuallyChg, a.MinutesWorked, a.OvertimeMin " +
+                "a.ShiftId, s.ShiftCode, a.StartTime, a.EndTime, a.Status, a.IsManuallyChg, a.MinutesWorked, a.OvertimeMin, " +
+                "a.LateMinutes, a.EarlyLeaveMinutes, e.DepartmentId, dep.DepartmentName " +
                 "FROM ((Attendance a INNER JOIN Employees e ON a.EmployeeId = e.EmployeeId) " +
-                "LEFT JOIN Shifts s ON a.ShiftId = s.ShiftId) WHERE a.AttDate >= ? AND a.AttDate <= ?");
+                "LEFT JOIN Shifts s ON a.ShiftId = s.ShiftId) " +
+                "LEFT JOIN Departments dep ON e.DepartmentId = dep.DepartmentId " +
+                "WHERE a.AttDate >= ? AND a.AttDate <= ?");
             List<OleDbParameter> parameters = new List<OleDbParameter>();
             parameters.Add(Db.PDate(fromDate));
             parameters.Add(Db.PDate(toDate));
@@ -98,6 +101,10 @@ namespace HR.DAL
             view.IsManuallyChg = r.IsDBNull(10) ? (bool?)null : r.GetBoolean(10);
             view.MinutesWorked = r.IsDBNull(11) ? (int?)null : Convert.ToInt32(r.GetValue(11));
             view.OvertimeMin = r.IsDBNull(12) ? (int?)null : Convert.ToInt32(r.GetValue(12));
+            view.LateMinutes = r.IsDBNull(13) ? (int?)null : Convert.ToInt32(r.GetValue(13));
+            view.EarlyLeaveMinutes = r.IsDBNull(14) ? (int?)null : Convert.ToInt32(r.GetValue(14));
+            view.DepartmentId = r.IsDBNull(15) ? (int?)null : Convert.ToInt32(r.GetValue(15));
+            view.DepartmentName = r.IsDBNull(16) ? null : r.GetString(16);
             return view;
         }
 
@@ -239,8 +246,8 @@ namespace HR.DAL
                     if (found == null || found == DBNull.Value)
                     {
                         upsertCommand.CommandText =
-                            "INSERT INTO Attendance (ShiftId, StartTime, EndTime, Status, IsManuallyChg, MinutesWorked, OvertimeMin, ApprovedBy, ApprovedAt, EmployeeId, AttDate) " +
-                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                            "INSERT INTO Attendance (ShiftId, StartTime, EndTime, Status, IsManuallyChg, MinutesWorked, OvertimeMin, LateMinutes, EarlyLeaveMinutes, ApprovedBy, ApprovedAt, EmployeeId, AttDate) " +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
                         PrepareAttendanceParameters(upsertCommand, row);
                         upsertCommand.Parameters.Add(Db.PNullableId(row.EmployeeId));
                         upsertCommand.Parameters.Add(Db.PDate(row.AttDate));
@@ -250,8 +257,8 @@ namespace HR.DAL
                     {
                         upsertCommand.CommandText =
                             "UPDATE Attendance SET ShiftId = ?, StartTime = ?, EndTime = ?, Status = ?, " +
-                            "IsManuallyChg = ?, MinutesWorked = ?, OvertimeMin = ?, ApprovedBy = ?, ApprovedAt = ? " +
-                            "WHERE AttendanceId = ?";
+                            "IsManuallyChg = ?, MinutesWorked = ?, OvertimeMin = ?, LateMinutes = ?, EarlyLeaveMinutes = ?, " +
+                            "ApprovedBy = ?, ApprovedAt = ? WHERE AttendanceId = ?";
                         PrepareAttendanceParameters(upsertCommand, row);
                         upsertCommand.Parameters.Add(Db.P(Convert.ToInt32(found)));
                         upsertCommand.ExecuteNonQuery();
@@ -297,6 +304,8 @@ namespace HR.DAL
             command.Parameters.Add(Db.PBool(false));
             command.Parameters.Add(Db.P(row.MinutesWorked ?? 0));
             command.Parameters.Add(Db.P(row.OvertimeMin ?? 0));
+            command.Parameters.Add(Db.P(row.LateMinutes ?? 0));
+            command.Parameters.Add(Db.P(row.EarlyLeaveMinutes ?? 0));
             command.Parameters.Add(Db.PNullableId(row.ApprovedBy));
             command.Parameters.Add(Db.PDate(row.ApprovedAt));
         }

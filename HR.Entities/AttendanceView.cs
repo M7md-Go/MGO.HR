@@ -31,5 +31,17 @@ namespace HR.Entities
         public int? MinutesWorked { get; set; }
         /// <summary>OvertimeMin.</summary>
         public int? OvertimeMin { get; set; }
+
+        /// <summary>LateMinutes from Attendance.</summary>
+        public int? LateMinutes { get; set; }
+
+        /// <summary>EarlyLeaveMinutes from Attendance.</summary>
+        public int? EarlyLeaveMinutes { get; set; }
+
+        /// <summary>DepartmentId of the employee (report grouping).</summary>
+        public int? DepartmentId { get; set; }
+
+        /// <summary>Department name of the employee (report display).</summary>
+        public string DepartmentName { get; set; }
     }
 }

@@ -34,6 +34,12 @@ namespace HR.Entities
         /// <summary>OvertimeMin.</summary>
         public int? OvertimeMin { get; set; }
 
+        /// <summary>LateMinutes — minutes past shift start + grace, written by the engine.</summary>
+        public int? LateMinutes { get; set; }
+
+        /// <summary>EarlyLeaveMinutes — minutes before shift end - grace, written by the engine.</summary>
+        public int? EarlyLeaveMinutes { get; set; }
+
         /// <summary>ApprovedBy.</summary>
         public int? ApprovedBy { get; set; }
 

@@ -201,6 +201,8 @@ CREATE TABLE Attendance (
     IsManuallyChg YESNO,
     MinutesWorked LONG,
     OvertimeMin   LONG,
+    LateMinutes   LONG,
+    EarlyLeaveMinutes LONG,
     ApprovedBy    LONG,
     ApprovedAt    DATETIME,
     CreatedAt     DATETIME,

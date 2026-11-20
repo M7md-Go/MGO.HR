@@ -112,12 +112,12 @@ namespace HR.Services
                 Mission freeMission = FindMission(missions, date);
                 if (freeMission != null && freeMission.IsExemptAtt == true)
                 {
-                    AddAttendance(output, employeeId, date, null, null, null, "Mission", null, 0);
+                    AddAttendance(output, employeeId, date, null, null, null, "Mission", null, 0, 0, 0);
                     return punchCursor;
                 }
                 if (FindLeave(leaves, date))
                 {
-                    AddAttendance(output, employeeId, date, null, null, null, "Leave", null, 0);
+                    AddAttendance(output, employeeId, date, null, null, null, "Leave", null, 0, 0, 0);
                     return punchCursor;
                 }
                 if (FindHoliday(date, holidayByDate, holidayByMonthDay))
@@ -141,7 +141,7 @@ namespace HR.Services
             bool restShift = IsRestShift(shift);
             if (restShift && punches.Count <= punchCursor)
             {
-                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "WeeklyRest", null, 0);
+                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "WeeklyRest", null, 0, 0, 0);
                 return punchCursor;
             }
 
@@ -151,12 +151,12 @@ namespace HR.Services
             Mission mission = FindMission(missions, date);
             if (mission != null && mission.IsExemptAtt == true)
             {
-                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Mission", null, 0);
+                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Mission", null, 0, 0, 0);
                 return punchCursor;
             }
             if (FindLeave(leaves, date))
             {
-                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Leave", null, 0);
+                AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Leave", null, 0, 0, 0);
                 return punchCursor;
             }
             if (isHoliday)
@@ -189,7 +189,7 @@ namespace HR.Services
             {
                 if (requireCheck)
                 {
-                    AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Absent", null, 0);
+                    AddAttendance(output, employeeId, date, shift.ShiftId, null, null, "Absent", null, 0, 0, 0);
                     AddException(output, employeeId, date, "Absent", null);
                 }
                 return punchCursor;
@@ -202,7 +202,9 @@ namespace HR.Services
             {
                 if (requireCheck)
                 {
-                    AddAttendance(output, employeeId, date, shift.ShiftId, punchIn, null, "MissingPunch", null, 0);
+                    AddAttendance(output, employeeId, date, shift.ShiftId, punchIn, null, "MissingPunch", null, 0,
+                        punchIn > expectedIn.AddMinutes(input.Rules.GraceMinutesLate) ?
+                        (int)(punchIn - expectedIn).TotalMinutes : 0, 0);
                     AddException(output, employeeId, date, "MissingPunch", null);
                 }
                 return inIndex + 1;
@@ -254,7 +256,7 @@ namespace HR.Services
 
             string status = lateMinutes > 0 ? "Late" : (earlyMinutes > 0 ? "EarlyLeave" : "Present");
             AddAttendance(output, employeeId, date, shift.ShiftId, punchIn, punchOut, status,
-                workedMinutes, overtimeMinutes);
+                workedMinutes, overtimeMinutes, lateMinutes, earlyMinutes);
             return nextCursor;
         }
 
@@ -265,7 +267,7 @@ namespace HR.Services
             int first = FindFirstPunch(punches, punchCursor, date.Date, dayEnd);
             if (first < 0)
             {
-                AddAttendance(output, employeeId, date, shiftId, null, null, status, null, 0);
+                AddAttendance(output, employeeId, date, shiftId, null, null, status, null, 0, 0, 0);
                 return;
             }
             int last = FindLastPunch(punches, first, (punches[first].LogTime ?? date.Date).AddMinutes(1), dayEnd);
@@ -275,7 +277,7 @@ namespace HR.Services
             punchCursor = (last < 0 ? first : last) + 1;
             if (workedMinutes <= 0)
             {
-                AddAttendance(output, employeeId, date, shiftId, inTime, outTime, status, null, 0);
+                AddAttendance(output, employeeId, date, shiftId, inTime, outTime, status, null, 0, 0, 0);
                 return;
             }
             if (input.Rules.MaxContinuousWorkHours > 0 && workedMinutes > input.Rules.MaxContinuousWorkHours * 60)
@@ -283,11 +285,12 @@ namespace HR.Services
                 AddException(output, employeeId, date, "OverContinuous", workedMinutes);
             }
             AddOvertimeRow(output, employeeId, date, workedMinutes, input.Rules.HolidayOvertimeRate);
-            AddAttendance(output, employeeId, date, shiftId, inTime, outTime, status, workedMinutes, workedMinutes);
+            AddAttendance(output, employeeId, date, shiftId, inTime, outTime, status, workedMinutes, workedMinutes, 0, 0);
         }
 
         private static void AddAttendance(EngineCalculationOutput output, int employeeId, DateTime date,
-            int? shiftId, DateTime? inTime, DateTime? outTime, string status, int? minutesWorked, int overtimeMinutes)
+            int? shiftId, DateTime? inTime, DateTime? outTime, string status, int? minutesWorked, int overtimeMinutes,
+            int lateMinutes, int earlyMinutes)
         {
             Attendance row = new Attendance();
             row.EmployeeId = employeeId;
@@ -299,6 +302,8 @@ namespace HR.Services
             row.IsManuallyChg = false;
             row.MinutesWorked = minutesWorked;
             row.OvertimeMin = overtimeMinutes;
+            row.LateMinutes = lateMinutes;
+            row.EarlyLeaveMinutes = earlyMinutes;
             output.AttendanceRows.Add(row);
         }
 
