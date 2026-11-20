@@ -24,7 +24,14 @@ namespace HR.UI.UI
 
             BuildMenu();
             BuildStatusBar();
+
+            _backupTimer = new Timer();
+            _backupTimer.Interval = 60000;
+            _backupTimer.Tick += delegate { BackupBLL.RunAutoBackupIfDue(); };
+            _backupTimer.Start();
         }
+
+        private Timer _backupTimer;
 
         private void BuildMenu()
         {
@@ -75,7 +82,7 @@ namespace HR.UI.UI
             miReports.Click += delegate { ShowForm(new FrmReports()); };
             miUsers.Click += delegate { ShowForm(new FrmUsers()); };
             miAudit.Click += delegate { ShowForm(new FrmAuditLog()); };
-            miBackup.Click += delegate { ShowPhaseNotice(12); };
+            miBackup.Click += delegate { ShowForm(new FrmBackupRestore()); };
             miSettings.Click += delegate { ShowPhaseNotice(2); };
             miLogout.Click += OnLogoutClick;
             miChangePassword.Click += OnChangePasswordClick;
