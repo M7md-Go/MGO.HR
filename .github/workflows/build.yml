@@ -1,0 +1,48 @@
+# Continuous build for Modern Time (WinForms / .NET Framework 4.0 / x86).
+# Windows runners ship only the .NET 4.8 targeting pack, so .NET 4.0 reference
+# assemblies are installed from NuGet and fed to MSBuild via FrameworkPathOverride.
+name: Build
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Install .NET Framework 4.0 reference assemblies
+        shell: pwsh
+        run: nuget install Microsoft.NETFramework.ReferenceAssemblies.net40 -NonInteractive -ExcludeVersion -OutputDirectory "$env:GITHUB_WORKSPACE\refs"
+
+      - name: Build solution (Release, x86, full 4.0 profile)
+        run: msbuild ModernTime.sln /m /nologo /p:Configuration=Release /p:TargetFrameworkProfile= "/p:FrameworkPathOverride=${{ github.workspace }}\refs\Microsoft.NETFramework.ReferenceAssemblies.net40\build\.NETFramework\v4.0"
+
+      - name: Collect output
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path output | Out-Null
+          Copy-Item HR.UI\bin\Release\* output\ -Force
+          Copy-Item Database\ModernTime_Schema.sql output\ -Force
+          Compress-Archive -Path output\* -Force -DestinationPath ModernTime.zip
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ModernTime-win-x86
+          path: ModernTime.zip
+
+      - name: Create release (tags only)
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$env:GITHUB_REF_NAME" ModernTime.zip --verify-tag --generate-notes --title "$env:GITHUB_REF_NAME"
