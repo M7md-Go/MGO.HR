@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
+using HR.Entities;
 
 namespace HR.DAL
 {
