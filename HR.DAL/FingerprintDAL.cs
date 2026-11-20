@@ -192,6 +192,29 @@ namespace HR.DAL
             return view;
         }
 
+        /// <summary>Mapped punches inside a window for the attendance engine (unmapped rows cannot feed calculations).</summary>
+        public static List<FingerprintLog> LoadMappedLogs(DateTime fromTime, DateTime toTime)
+        {
+            return Db.ReadList<FingerprintLog>(
+                "SELECT LogId, DeviceId, EmployeeId, EmpDevCode, LogTime, InOutFlag, SourceFile, CreatedAt " +
+                "FROM FingerprintLogs WHERE EmployeeId IS NOT NULL AND LogTime >= ? AND LogTime <= ? " +
+                "ORDER BY EmployeeId, LogTime",
+                delegate(OleDbDataReader r)
+                {
+                    FingerprintLog row = new FingerprintLog();
+                    row.LogId = r.GetInt32(0);
+                    row.DeviceId = r.IsDBNull(1) ? (int?)null : r.GetInt32(1);
+                    row.EmployeeId = r.IsDBNull(2) ? (int?)null : r.GetInt32(2);
+                    row.EmpDevCode = r.IsDBNull(3) ? null : r.GetString(3);
+                    row.LogTime = r.IsDBNull(4) ? (DateTime?)null : r.GetDateTime(4);
+                    row.InOutFlag = r.IsDBNull(5) ? (int?)null : r.GetInt32(5);
+                    row.SourceFile = r.IsDBNull(6) ? null : r.GetString(6);
+                    row.CreatedAt = r.IsDBNull(7) ? (DateTime?)null : r.GetDateTime(7);
+                    return row;
+                },
+                Db.PDate(fromTime), Db.PDate(toTime));
+        }
+
         /// <summary>Number of log rows recorded from one device.</summary>
         public static long CountByDevice(int deviceId)
         {

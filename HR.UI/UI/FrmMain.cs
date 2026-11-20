@@ -46,6 +46,7 @@ namespace HR.UI.UI
             ToolStripMenuItem miShifts = new ToolStripMenuItem("الورديات");
             ToolStripMenuItem miDashboard = new ToolStripMenuItem("لوحة التحكم");
             ToolStripMenuItem miMonthly = new ToolStripMenuItem("الجدول الشهري");
+            ToolStripMenuItem miAttEngine = new ToolStripMenuItem("محرك الحضور");
             ToolStripMenuItem miFingerprint = new ToolStripMenuItem("البصمة والحضور");
             ToolStripMenuItem miReports = new ToolStripMenuItem("التقارير");
             ToolStripMenuItem miAdmin = new ToolStripMenuItem("الإدارة");
@@ -60,6 +61,7 @@ namespace HR.UI.UI
             miOrg.Click += delegate { ShowForm(new FrmLookupManager()); };
             miShifts.Click += delegate { ShowForm(new FrmShifts()); };
             miMonthly.Click += delegate { ShowForm(new FrmMonthlySchedule()); };
+            miAttEngine.Click += delegate { ShowForm(new FrmAttendanceCalc()); };
             miFingerprint.Click += delegate { ShowForm(new FrmDevices()); };
             miDashboard.Click += delegate { ShowPhaseNotice(11); };
             miReports.Click += delegate { ShowPhaseNotice(9); };
@@ -76,6 +78,7 @@ namespace HR.UI.UI
             miModules.DropDownItems.Add(new ToolStripSeparator());
             miModules.DropDownItems.Add(miDashboard);
             miModules.DropDownItems.Add(miMonthly);
+            miModules.DropDownItems.Add(miAttEngine);
             miModules.DropDownItems.Add(miFingerprint);
             miModules.DropDownItems.Add(new ToolStripSeparator());
             miModules.DropDownItems.Add(miReports);

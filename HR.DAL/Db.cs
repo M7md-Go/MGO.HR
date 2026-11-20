@@ -219,6 +219,38 @@ namespace HR.DAL
         /// Runs work inside one Jet transaction (BR-20).
         /// The work function receives the connection and the transaction.
         /// </summary>
+        /// <summary>Runs a scalar query inside an open transaction.</summary>
+        public static object ExecuteScalarOn(OleDbConnection connection, OleDbTransaction transaction,
+            string sql, params OleDbParameter[] parameters)
+        {
+            using (OleDbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                if (parameters != null)
+                {
+                    command.Parameters.AddRange(parameters);
+                }
+                return command.ExecuteScalar();
+            }
+        }
+
+        /// <summary>Runs a statement inside an open transaction and returns affected rows.</summary>
+        public static int ExecuteNonQueryOn(OleDbConnection connection, OleDbTransaction transaction,
+            string sql, params OleDbParameter[] parameters)
+        {
+            using (OleDbCommand command = connection.CreateCommand())
+            {
+                command.Transaction = transaction;
+                command.CommandText = sql;
+                if (parameters != null)
+                {
+                    command.Parameters.AddRange(parameters);
+                }
+                return command.ExecuteNonQuery();
+            }
+        }
+
         public static T ExecuteInTransaction<T>(Func<OleDbConnection, OleDbTransaction, T> work)
         {
             using (OleDbConnection connection = CreateConnection())
