@@ -54,6 +54,10 @@
       <Project>27625e45-7f8e-4904-9eed-c6d3afa4ae74</Project>
       <Name>HR.Entities</Name>
     </ProjectReference>
+    <ProjectReference Include="..\HR.Helpers\HR.Helpers.csproj">
+      <Project>{8270F338-F987-4C9F-AB2A-6B12B203CAA6}</Project>
+      <Name>HR.Helpers</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

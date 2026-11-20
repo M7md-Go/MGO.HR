@@ -1,4 +1,4 @@
-namespace HR.DAL
+namespace HR.Entities
 {
     /// <summary>Whitelist of lookup tables manageable through LookupDAL.</summary>
     public enum LookupTable

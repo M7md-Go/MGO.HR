@@ -48,6 +48,21 @@ namespace HR.DAL
             return Db.ReadList(sql, MapView, parameters.ToArray());
         }
 
+        private static Penalty MapPenalty(OleDbDataReader r)
+        {
+            Penalty row = new Penalty();
+            row.PenaltyId = r.GetInt32(0);
+            row.EmployeeId = r.IsDBNull(1) ? (int?)null : r.GetInt32(1);
+            row.AttDate = r.IsDBNull(2) ? (DateTime?)null : r.GetDateTime(2);
+            row.PenaltyDate = r.IsDBNull(3) ? (DateTime?)null : r.GetDateTime(3);
+            row.TypeCode = r.IsDBNull(4) ? null : r.GetString(4);
+            row.Amount = r.IsDBNull(5) ? (decimal?)null : Convert.ToDecimal(r.GetValue(5));
+            row.Reason = r.IsDBNull(6) ? null : r.GetString(6);
+            row.IssuedBy = r.IsDBNull(7) ? (int?)null : Convert.ToInt32(r.GetValue(7));
+            row.CreatedAt = r.IsDBNull(8) ? (DateTime?)null : r.GetDateTime(8);
+            return row;
+        }
+
         private static PenaltyView MapView(OleDbDataReader r)
         {
             PenaltyView row = new PenaltyView();

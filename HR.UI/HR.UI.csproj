@@ -49,13 +49,13 @@
       <Project>27625e45-7f8e-4904-9eed-c6d3afa4ae74</Project>
       <Name>HR.Entities</Name>
     </ProjectReference>
+    <ProjectReference Include="..\HR.Services\HR.Services.csproj">
+      <Project>{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}</Project>
+      <Name>HR.Services</Name>
+    </ProjectReference>
     <ProjectReference Include="..\HR.BLL\HR.BLL.csproj">
       <Project>d797a58a-82c1-4d67-8d7f-fae50f0fb02e</Project>
       <Name>HR.BLL</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\HR.DAL\HR.DAL.csproj">
-      <Project>eab36d0f-d9b1-4439-9343-1356a4560339</Project>
-      <Name>HR.DAL</Name>
     </ProjectReference>
     <ProjectReference Include="..\HR.Helpers\HR.Helpers.csproj">
       <Project>8270f338-f987-4c9f-ab2a-6b12b203caa6</Project>

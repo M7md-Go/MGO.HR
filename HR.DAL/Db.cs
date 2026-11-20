@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.OleDb;
 using System.IO;
 using HR.Entities;
+using HR.Helpers;
 
 namespace HR.DAL
 {
