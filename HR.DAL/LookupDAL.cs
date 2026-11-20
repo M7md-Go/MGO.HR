@@ -145,7 +145,7 @@ namespace HR.DAL
             List<OleDbParameter> parameters = new List<OleDbParameter>();
             if (activeOnly)
             {
-                sql = sql + " AND IsActive = 1";
+                sql = sql + " AND IsActive <> 0";   // Jet YESNO stores True as -1; ' = 1' never matches
             }
             if (departmentId != null)
             {
@@ -168,7 +168,7 @@ namespace HR.DAL
             List<OleDbParameter> parameters = new List<OleDbParameter>();
             if (activeOnly)
             {
-                sql = sql + " AND IsActive = 1";
+                sql = sql + " AND IsActive <> 0";   // Jet YESNO stores True as -1; ' = 1' never matches
             }
             if (departmentId != null)
             {
@@ -302,7 +302,7 @@ namespace HR.DAL
             List<OleDbParameter> parameters = new List<OleDbParameter>();
             if (!includeInactive && hasActive)
             {
-                sql = sql + " AND IsActive = 1";
+                sql = sql + " AND IsActive <> 0";   // Jet YESNO stores True as -1; ' = 1' never matches
             }
             sql = sql + " ORDER BY " + CodeColumn(table);
             rows = Db.ReadList(sql,
