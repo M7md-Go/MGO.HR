@@ -65,6 +65,10 @@ namespace HR.BLL
             {
                 throw new BusinessException("لا يمكن تعديل مأمورية معتمدة.");
             }
+            if (stored.Status == StatusRejected)
+            {
+                throw new BusinessException("لا يمكن تعديل مأمورية مرفوضة — أنشئ مأمورية جديدة.");
+            }
             MissionDAL.Update(missionId, mission);
             AuditBLL.Log("Mission.Update", "Missions", missionId.ToString(),
                 stored.StartDate.Value.ToString("yyyy-MM-dd") + " → " + stored.EndDate.Value.ToString("yyyy-MM-dd"),
@@ -132,7 +136,7 @@ namespace HR.BLL
                 return;
             }
             TimeSpan parsed;
-            if (!TimeSpan.TryParse(time, out parsed) || parsed < TimeSpan.Zero || parsed >= new TimeSpan(1, 0, 0))
+            if (!TimeSpan.TryParse(time, out parsed) || parsed < TimeSpan.Zero || parsed >= TimeSpan.FromHours(24))
             {
                 throw new BusinessException(fieldName + " يجب أن يكون بصيغة HH:mm صحيحة (مثال: 08:30).");
             }

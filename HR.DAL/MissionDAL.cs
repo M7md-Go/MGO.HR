@@ -71,15 +71,29 @@ namespace HR.DAL
 
         public static int Insert(Mission mission, int? createdBy)
         {
-            Db.ExecuteNonQuery(
+            string sql =
                 "INSERT INTO Missions (EmployeeId, StartDate, StartTime, EndDate, EndTime, Location, Purpose, IsExemptAtt, Status, CreatedAt, CreatedBy) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', Now(), ?)",
-                Db.P(mission.EmployeeId ?? 0),
-                Db.PDateRequired(mission.StartDate), Db.P(mission.StartTime ?? string.Empty),
-                Db.PDateRequired(mission.EndDate), Db.P(mission.EndTime ?? string.Empty),
-                Db.P(mission.Location ?? string.Empty), Db.P(mission.Purpose ?? string.Empty),
-                Db.PBool(mission.IsExemptAtt), Db.PNullableId(createdBy));
-            return Convert.ToInt32(Db.ExecuteScalar("SELECT @@IDENTITY"));
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', Now(), ?)";
+            return Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            {
+                using (OleDbCommand command = new OleDbCommand(sql, connection, transaction))
+                {
+                    command.Parameters.Add(Db.P(mission.EmployeeId ?? 0));
+                    command.Parameters.Add(Db.PDateRequired(mission.StartDate));
+                    command.Parameters.Add(Db.P(mission.StartTime ?? string.Empty));
+                    command.Parameters.Add(Db.PDateRequired(mission.EndDate));
+                    command.Parameters.Add(Db.P(mission.EndTime ?? string.Empty));
+                    command.Parameters.Add(Db.P(mission.Location ?? string.Empty));
+                    command.Parameters.Add(Db.P(mission.Purpose ?? string.Empty));
+                    command.Parameters.Add(Db.PBool(mission.IsExemptAtt));
+                    command.Parameters.Add(Db.PNullableId(createdBy));
+                    command.ExecuteNonQuery();
+                }
+                using (OleDbCommand identity = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
+                {
+                    return Convert.ToInt32(identity.ExecuteScalar());
+                }
+            });
         }
 
         public static void Update(int missionId, Mission mission)

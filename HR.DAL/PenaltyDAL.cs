@@ -82,13 +82,27 @@ namespace HR.DAL
 
         public static int Insert(Penalty penalty, int? issuedBy)
         {
-            Db.ExecuteNonQuery(
+            string sql =
                 "INSERT INTO Penalties (EmployeeId, AttDate, PenaltyDate, TypeCode, Amount, Reason, IssuedBy, CreatedAt) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, Now())",
-                Db.P(penalty.EmployeeId ?? 0), Db.PDate(penalty.AttDate), Db.PDateRequired(penalty.PenaltyDate),
-                Db.P(penalty.TypeCode ?? string.Empty), Db.PCurrency(penalty.Amount),
-                Db.P(penalty.Reason ?? string.Empty), Db.PNullableId(issuedBy));
-            return Convert.ToInt32(Db.ExecuteScalar("SELECT @@IDENTITY"));
+                "VALUES (?, ?, ?, ?, ?, ?, ?, Now())";
+            return Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            {
+                using (OleDbCommand command = new OleDbCommand(sql, connection, transaction))
+                {
+                    command.Parameters.Add(Db.P(penalty.EmployeeId ?? 0));
+                    command.Parameters.Add(Db.PDate(penalty.AttDate));
+                    command.Parameters.Add(Db.PDateRequired(penalty.PenaltyDate));
+                    command.Parameters.Add(Db.P(penalty.TypeCode ?? string.Empty));
+                    command.Parameters.Add(Db.PCurrency(penalty.Amount));
+                    command.Parameters.Add(Db.P(penalty.Reason ?? string.Empty));
+                    command.Parameters.Add(Db.PNullableId(issuedBy));
+                    command.ExecuteNonQuery();
+                }
+                using (OleDbCommand identity = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
+                {
+                    return Convert.ToInt32(identity.ExecuteScalar());
+                }
+            });
         }
 
         public static void Update(int penaltyId, Penalty penalty)

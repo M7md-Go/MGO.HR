@@ -25,6 +25,9 @@ namespace HR.Entities
         /// <summary>Reason.</summary>
         public string Reason { get; set; }
 
+        /// <summary>RejectReason (filled when Status = Rejected).</summary>
+        public string RejectReason { get; set; }
+
         /// <summary>Status.</summary>
         public string Status { get; set; }
 

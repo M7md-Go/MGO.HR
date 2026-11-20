@@ -224,17 +224,13 @@ namespace HR.UI.UI
 
         private Employee ResolveEmployee()
         {
-            string text = (_txtEmployee.Text ?? string.Empty).Trim();
-            if (text.Length == 0)
+            string resolveError;
+            Employee employee = EmployeeResolve.FromText(_txtEmployee.Text, out resolveError);
+            if (resolveError != null)
             {
-                return null;
+                throw new BusinessException(resolveError);
             }
-            EmployeeSearchFilter filter = new EmployeeSearchFilter();
-            filter.Text = text;
-            filter.IncludeArchived = true;
-            filter.PageSize = 1;
-            List<Employee> matches = EmployeeBLL.Search(filter);
-            return matches.Count > 0 ? matches[0] : null;
+            return employee;
         }
 
         private void OnSaveClick()

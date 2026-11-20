@@ -26,6 +26,7 @@ namespace HR.UI.UI
         private DateTimePicker _dtpEnd;
         private TextBox _txtReason;
         private Label _lblBalance;
+        private Label _lblStatus;
         private Button _btnSave;
         private Button _btnCancel;
 
@@ -100,6 +101,11 @@ namespace HR.UI.UI
             _lblBalance.Size = new Size(415, 40);
             _lblBalance.ForeColor = Theme.HeaderTextColor;
 
+            _lblStatus = new Label();
+            _lblStatus.Location = new Point(20, 295);
+            _lblStatus.Size = new Size(415, 40);
+            _lblStatus.ForeColor = Theme.StatusBad;
+
             _btnSave = new Button();
             _btnSave.Text = "حفظ";
             _btnSave.Location = new Point(305, 340);
@@ -127,6 +133,7 @@ namespace HR.UI.UI
             Controls.Add(lblReason);
             Controls.Add(_txtReason);
             Controls.Add(_lblBalance);
+            Controls.Add(_lblStatus);
             Controls.Add(_btnSave);
             Controls.Add(_btnCancel);
 
@@ -186,6 +193,18 @@ namespace HR.UI.UI
                 _dtpStart.Value = stored.StartDate ?? DateTime.Now.Date;
                 _dtpEnd.Value = stored.EndDate ?? DateTime.Now.Date;
                 _txtReason.Text = stored.Reason;
+                if (stored.Status != null && stored.Status != LeaveBLL.StatusPending)
+                {
+                    _txtEmployee.Enabled = false;
+                    _cboType.Enabled = false;
+                    _dtpStart.Enabled = false;
+                    _dtpEnd.Enabled = false;
+                    _btnSave.Enabled = false;
+                    _lblStatus.Text = "حالة الطلب: " + (stored.Status == LeaveBLL.StatusApproved ? "معتمد" : "مرفوض") +
+                        " — البيانات مقفلة." +
+                        (string.IsNullOrEmpty(stored.RejectReason) ? string.Empty : " سبب الرفض: " + stored.RejectReason);
+                    Text = "عرض طلب الإجازة";
+                }
             }
             catch (Exception unexpected)
             {
@@ -224,17 +243,13 @@ namespace HR.UI.UI
 
         private Employee ResolveEmployee()
         {
-            string text = (_txtEmployee.Text ?? string.Empty).Trim();
-            if (text.Length == 0)
+            string resolveError;
+            Employee employee = EmployeeResolve.FromText(_txtEmployee.Text, out resolveError);
+            if (resolveError != null)
             {
-                return null;
+                throw new BusinessException(resolveError);
             }
-            EmployeeSearchFilter filter = new EmployeeSearchFilter();
-            filter.Text = text;
-            filter.IncludeArchived = true;
-            filter.PageSize = 1;
-            List<Employee> matches = EmployeeBLL.Search(filter);
-            return matches.Count > 0 ? matches[0] : null;
+            return employee;
         }
 
         private void OnSaveClick()

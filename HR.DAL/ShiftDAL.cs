@@ -16,7 +16,7 @@ namespace HR.DAL
             string sql = "SELECT " + SelectColumns + " FROM Shifts";
             if (activeOnly)
             {
-                sql = sql + " WHERE IsActive = 1";
+                sql = sql + " WHERE IsActive <> 0";   // Jet YESNO stores True as -1; ' = 1' never matches
             }
             sql = sql + " ORDER BY ShiftCode";
             return Db.ReadList(sql, MapRow);

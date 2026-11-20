@@ -25,6 +25,8 @@ namespace HR.Entities
         public int? DaysCount { get; set; }
         /// <summary>Reason.</summary>
         public string Reason { get; set; }
+        /// <summary>RejectReason (filled when Status = Rejected).</summary>
+        public string RejectReason { get; set; }
         /// <summary>Status (Pending/Approved/Rejected).</summary>
         public string Status { get; set; }
         /// <summary>ApprovedBy user id.</summary>

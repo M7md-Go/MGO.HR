@@ -409,7 +409,7 @@ namespace HR.DAL
 
         private static string WhereActive(bool activeOnly)
         {
-            return activeOnly ? " WHERE IsActive = 1" : string.Empty;
+            return activeOnly ? " WHERE IsActive <> 0" : string.Empty;   // Jet YESNO stores True as -1
         }
 
         private static string TableName(LookupTable table)

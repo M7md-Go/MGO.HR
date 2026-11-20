@@ -124,6 +124,8 @@ namespace HR.UI.UI
             AddNavSection(list, "الخدمات");
             AddNavItem(list, new NavItem("leaves", "الإجازات",
                 new string[] { "Leaves.Approve", "Leave.Create" }));
+            AddNavItem(list, new NavItem("longleaves", "الإجازات طويلة المدة",
+                new string[] { "Leaves.Approve", "Leave.Create" }));
             AddNavItem(list, new NavItem("missions", "المأموريات",
                 new string[] { "Missions.Approve", "Mission.Create" }));
             AddNavItem(list, new NavItem("penalties", "الجزاءات",
@@ -348,6 +350,7 @@ namespace HR.UI.UI
                 case "attengine": form = new FrmAttendanceCalc(); break;
                 case "devices": form = new FrmDevices(); break;
                 case "leaves": form = new FrmLeaves(); break;
+                case "longleaves": form = new FrmLongLeaves(); break;
                 case "missions": form = new FrmMissions(); break;
                 case "penalties": form = new FrmPenalties(); break;
                 case "reports": form = new FrmReports(); break;
@@ -428,6 +431,8 @@ namespace HR.UI.UI
             result.Add(StoreAndMenu(new NavItem("devices", "البصمة والحضور",
                 new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" })));
             result.Add(StoreAndMenu(new NavItem("leaves", "الإجازات",
+                new string[] { "Leaves.Approve", "Leave.Create" })));
+            result.Add(StoreAndMenu(new NavItem("longleaves", "الإجازات طويلة المدة",
                 new string[] { "Leaves.Approve", "Leave.Create" })));
             result.Add(StoreAndMenu(new NavItem("missions", "المأموريات",
                 new string[] { "Missions.Approve", "Mission.Create" })));

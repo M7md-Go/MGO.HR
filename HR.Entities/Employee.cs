@@ -91,6 +91,15 @@ namespace HR.Entities
         /// <summary>Notes.</summary>
         public string Notes { get; set; }
 
+        /// <summary>FirstWorkDate — تاريخ أول استلام عمل.</summary>
+        public DateTime? FirstWorkDate { get; set; }
+
+        /// <summary>NominalHireDate — تاريخ التعيين الفرضي.</summary>
+        public DateTime? NominalHireDate { get; set; }
+
+        /// <summary>JobKeepDate — تاريخ حفظ الوظيفة.</summary>
+        public DateTime? JobKeepDate { get; set; }
+
         /// <summary>CreatedAt.</summary>
         public DateTime? CreatedAt { get; set; }
 

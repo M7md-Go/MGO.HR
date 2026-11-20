@@ -45,10 +45,13 @@ namespace HR.DAL
             employee.CreatedBy = reader.IsDBNull(30) ? (int?)null : reader.GetInt32(30);
             employee.UpdatedAt = reader.IsDBNull(31) ? (DateTime?)null : reader.GetDateTime(31);
             employee.UpdatedBy = reader.IsDBNull(32) ? (int?)null : reader.GetInt32(32);
+            employee.FirstWorkDate = reader.IsDBNull(33) ? (DateTime?)null : reader.GetDateTime(33);
+            employee.NominalHireDate = reader.IsDBNull(34) ? (DateTime?)null : reader.GetDateTime(34);
+            employee.JobKeepDate = reader.IsDBNull(35) ? (DateTime?)null : reader.GetDateTime(35);
             return employee;
         }
 
-        private const string SelectColumns = "EmployeeId, EmployeeCode, NationalId, FullNameAr, FullNameEn, Gender, BirthDate, HireDate, EndDate, CompanyId, BranchId, DepartmentId, SectionId, JobTitleId, ActualJobId, EmployeeStatusId, QualificationId, EmploymentType, Phone, Email, Address, PhotoPath, DeviceEnrollNumber, ShiftGroupCode, ContractHours, Salary, Status, IsDeleted, Notes, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy";
+        private const string SelectColumns = "EmployeeId, EmployeeCode, NationalId, FullNameAr, FullNameEn, Gender, BirthDate, HireDate, EndDate, CompanyId, BranchId, DepartmentId, SectionId, JobTitleId, ActualJobId, EmployeeStatusId, QualificationId, EmploymentType, Phone, Email, Address, PhotoPath, DeviceEnrollNumber, ShiftGroupCode, ContractHours, Salary, Status, IsDeleted, Notes, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, FirstWorkDate, NominalHireDate, JobKeepDate";
 
         public static Employee GetById(int employeeId)
         {
@@ -123,8 +126,8 @@ namespace HR.DAL
         /// <summary>Inserted and returns the new EmployeeId (Jet: SELECT @@IDENTITY).</summary>
         public static int Insert(Employee employee)
         {
-            string sql = "INSERT INTO Employees (EmployeeCode, NationalId, FullNameAr, FullNameEn, Gender, BirthDate, HireDate, EndDate, CompanyId, BranchId, DepartmentId, SectionId, JobTitleId, ActualJobId, EmployeeStatusId, QualificationId, EmploymentType, Phone, Email, Address, PhotoPath, DeviceEnrollNumber, ShiftGroupCode, ContractHours, Salary, Status, IsDeleted, Notes, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy) " +
-                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            string sql = "INSERT INTO Employees (EmployeeCode, NationalId, FullNameAr, FullNameEn, Gender, BirthDate, HireDate, EndDate, CompanyId, BranchId, DepartmentId, SectionId, JobTitleId, ActualJobId, EmployeeStatusId, QualificationId, EmploymentType, Phone, Email, Address, PhotoPath, DeviceEnrollNumber, ShiftGroupCode, ContractHours, Salary, Status, IsDeleted, Notes, CreatedAt, CreatedBy, UpdatedAt, UpdatedBy, FirstWorkDate, NominalHireDate, JobKeepDate) " +
+                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             int newId = 0;
             Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
@@ -162,6 +165,9 @@ namespace HR.DAL
                     command.Parameters.Add(Db.PNullableId(employee.CreatedBy));
                     command.Parameters.Add(Db.PDateRequired(DateTime.Now));
                     command.Parameters.Add(Db.PNullableId(employee.UpdatedBy));
+                    command.Parameters.Add(Db.PDate(employee.FirstWorkDate));
+                    command.Parameters.Add(Db.PDate(employee.NominalHireDate));
+                    command.Parameters.Add(Db.PDate(employee.JobKeepDate));
                     command.ExecuteNonQuery();
                 }
                 newId = GetIdentity(connection, transaction);
@@ -170,7 +176,7 @@ namespace HR.DAL
             return newId;
         }
 
-        private const string UpdateSql = "UPDATE Employees SET NationalId = ?, FullNameAr = ?, FullNameEn = ?, Gender = ?, BirthDate = ?, HireDate = ?, EndDate = ?, CompanyId = ?, BranchId = ?, DepartmentId = ?, SectionId = ?, JobTitleId = ?, ActualJobId = ?, EmployeeStatusId = ?, QualificationId = ?, EmploymentType = ?, Phone = ?, Email = ?, Address = ?, PhotoPath = ?, DeviceEnrollNumber = ?, ShiftGroupCode = ?, ContractHours = ?, Salary = ?, Status = ?, IsDeleted = ?, Notes = ?, UpdatedAt = ?, UpdatedBy = ? " +
+        private const string UpdateSql = "UPDATE Employees SET NationalId = ?, FullNameAr = ?, FullNameEn = ?, Gender = ?, BirthDate = ?, HireDate = ?, EndDate = ?, CompanyId = ?, BranchId = ?, DepartmentId = ?, SectionId = ?, JobTitleId = ?, ActualJobId = ?, EmployeeStatusId = ?, QualificationId = ?, EmploymentType = ?, Phone = ?, Email = ?, Address = ?, PhotoPath = ?, DeviceEnrollNumber = ?, ShiftGroupCode = ?, ContractHours = ?, Salary = ?, Status = ?, IsDeleted = ?, Notes = ?, FirstWorkDate = ?, NominalHireDate = ?, JobKeepDate = ?, UpdatedAt = ?, UpdatedBy = ? " +
                                          "WHERE EmployeeId = ?";
 
         private static void FillUpdateParameters(OleDbCommand command, Employee employee)
@@ -202,6 +208,9 @@ namespace HR.DAL
             command.Parameters.Add(Db.P(employee.Status));
             command.Parameters.Add(Db.PBool(employee.IsDeleted));
             command.Parameters.Add(Db.P(employee.Notes));
+            command.Parameters.Add(Db.PDate(employee.FirstWorkDate));
+            command.Parameters.Add(Db.PDate(employee.NominalHireDate));
+            command.Parameters.Add(Db.PDate(employee.JobKeepDate));
             command.Parameters.Add(Db.PDateRequired(DateTime.Now));
             command.Parameters.Add(Db.PNullableId(employee.UpdatedBy));
             command.Parameters.Add(Db.P(employee.EmployeeId));
@@ -283,6 +292,13 @@ namespace HR.DAL
         public static void SoftDelete(int employeeId, int? userId)
         {
             string sql = "UPDATE Employees SET IsDeleted = 1, Status = 'Archived', UpdatedAt = ?, UpdatedBy = ? WHERE EmployeeId = ?";
+            Db.ExecuteNonQuery(sql, Db.PDateRequired(DateTime.Now), Db.PNullableId(userId), Db.P(employeeId));
+        }
+
+        /// <summary>Ungarchives: clears IsDeleted and returns the employee to Active.</summary>
+        public static void Unarchive(int employeeId, int? userId)
+        {
+            string sql = "UPDATE Employees SET IsDeleted = 0, Status = 'Active', UpdatedAt = ?, UpdatedBy = ? WHERE EmployeeId = ?";
             Db.ExecuteNonQuery(sql, Db.PDateRequired(DateTime.Now), Db.PNullableId(userId), Db.P(employeeId));
         }
 

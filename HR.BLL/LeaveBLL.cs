@@ -86,6 +86,11 @@ namespace HR.BLL
             {
                 throw new BusinessException("لا يمكن تعديل طلب معتمد — ألغه عبر المسؤول الأعلى.");
             }
+
+            if (stored.Status == StatusRejected)
+            {
+                throw new BusinessException("لا يمكن تعديل طلب مرفوض — يمكن تحديث سبب الرفض فقط من شاشة الإجازات.");
+            }
             LeaveType type = LeaveDAL.GetTypeById(request.LeaveTypeId ?? 0);
             if (type == null)
             {
@@ -133,7 +138,7 @@ namespace HR.BLL
             AuditBLL.Log("Leave.Approve", "LeaveRequests", leaveId.ToString(), StatusPending, StatusApproved);
         }
 
-        public static void Reject(int leaveId)
+        public static void Reject(int leaveId, string rejectReason)
         {
             AppContext.RequirePermission("Leaves.Approve");
             LeaveRequestView stored = LeaveDAL.GetRequestView(leaveId);
@@ -145,8 +150,26 @@ namespace HR.BLL
             {
                 throw new BusinessException("الرفض متاح للطلبات المعلّقة فقط — حالة الطلب الحالية: " + stored.Status + ".");
             }
-            LeaveDAL.SetRequestStatus(leaveId, StatusRejected, CurrentUserId());
-            AuditBLL.Log("Leave.Reject", "LeaveRequests", leaveId.ToString(), StatusPending, StatusRejected);
+            LeaveDAL.SetRequestStatus(leaveId, StatusRejected, CurrentUserId(), rejectReason);
+            AuditBLL.Log("Leave.Reject", "LeaveRequests", leaveId.ToString(), StatusPending,
+                StatusRejected + (string.IsNullOrEmpty(rejectReason) ? string.Empty : " — السبب: " + rejectReason));
+        }
+
+        public static void SetRejectReason(int leaveId, string rejectReason)
+        {
+            AppContext.RequirePermission("Leaves.Approve");
+            LeaveRequestView stored = LeaveDAL.GetRequestView(leaveId);
+            if (stored == null)
+            {
+                throw new BusinessException("طلب الإجازة غير موجود.");
+            }
+            if (stored.Status != StatusRejected)
+            {
+                throw new BusinessException("تحديث سبب الرفض متاح للطلبات المرفوضة فقط.");
+            }
+            LeaveDAL.SetRejectReason(leaveId, rejectReason);
+            AuditBLL.Log("Leave.RejectReason", "LeaveRequests", leaveId.ToString(),
+                stored.RejectReason, rejectReason);
         }
 
         public static LeaveBalance GetOrInitBalance(int employeeId, int year, int leaveTypeId)

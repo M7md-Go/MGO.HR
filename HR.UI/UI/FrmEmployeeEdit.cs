@@ -49,6 +49,9 @@ namespace HR.UI.UI
         private NumericUpDown _numContractHours;
         private NumericUpDown _numSalary;
         private TextBox _txtNotes;
+        private DateTimePicker _dtpFirstWork;
+        private DateTimePicker _dtpNominalHire;
+        private DateTimePicker _dtpJobKeep;
 
         // Full lookup dictionaries: real Id -> display name for every entity.
         private Dictionary<int, string> _companyNames;
@@ -248,6 +251,18 @@ namespace HR.UI.UI
             _numSalary.DecimalPlaces = 2;
             Controls.Add(FieldLabel("الراتب:", col2LabelX, 335));
             Controls.Add(_numSalary);
+
+            _dtpFirstWork = FieldDate(col2FieldX, 370, true);
+            Controls.Add(FieldLabel("تاريخ أول استلام عمل:", col2LabelX, 370));
+            Controls.Add(_dtpFirstWork);
+
+            _dtpNominalHire = FieldDate(col2FieldX, 405, true);
+            Controls.Add(FieldLabel("تاريخ التعيين الفرضي:", col2LabelX, 405));
+            Controls.Add(_dtpNominalHire);
+
+            _dtpJobKeep = FieldDate(col2FieldX, 440, true);
+            Controls.Add(FieldLabel("تاريخ حفظ الوظيفة:", col2LabelX, 440));
+            Controls.Add(_dtpJobKeep);
 
             _txtNotes = new TextBox();
             _txtNotes.Location = new Point(fieldX, 470);
@@ -600,6 +615,21 @@ namespace HR.UI.UI
                 _numSalary.Value = employee.Salary.Value;
             }
             _txtNotes.Text = employee.Notes ?? string.Empty;
+            if (employee.FirstWorkDate != null)
+            {
+                _dtpFirstWork.Checked = true;
+                _dtpFirstWork.Value = employee.FirstWorkDate.Value;
+            }
+            if (employee.NominalHireDate != null)
+            {
+                _dtpNominalHire.Checked = true;
+                _dtpNominalHire.Value = employee.NominalHireDate.Value;
+            }
+            if (employee.JobKeepDate != null)
+            {
+                _dtpJobKeep.Checked = true;
+                _dtpJobKeep.Value = employee.JobKeepDate.Value;
+            }
         }
 
         // ---------------- save ----------------
@@ -646,6 +676,9 @@ namespace HR.UI.UI
                 employee.ContractHours = (float)_numContractHours.Value;
                 employee.Salary = _numSalary.Value == 0 ? (decimal?)null : _numSalary.Value;
                 employee.Notes = EmptyToNull(_txtNotes.Text);
+                employee.FirstWorkDate = _dtpFirstWork.Checked ? (DateTime?)_dtpFirstWork.Value.Date : null;
+                employee.NominalHireDate = _dtpNominalHire.Checked ? (DateTime?)_dtpNominalHire.Value.Date : null;
+                employee.JobKeepDate = _dtpJobKeep.Checked ? (DateTime?)_dtpJobKeep.Value.Date : null;
 
                 if (_employeeId == null)
                 {

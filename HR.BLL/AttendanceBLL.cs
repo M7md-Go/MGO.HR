@@ -120,6 +120,11 @@ namespace HR.BLL
             input.ShiftIndex = shiftIndex;
             input.Punches = FingerprintDAL.LoadMappedLogs(punchFrom, punchTo);
             input.ApprovedLeaves = AttendanceDAL.LoadApprovedLeaves(fromDate, toDate);
+
+            foreach (LeaveRequest openEnded in LongLeaveDAL.LoadApprovedForEngine(fromDate, toDate))
+            {
+                input.ApprovedLeaves.Add(openEnded);
+            }
             input.ApprovedMissions = AttendanceDAL.LoadApprovedMissions(fromDate, toDate);
             input.Holidays = AttendanceDAL.LoadHolidays(fromDate, toDate);
             input.SkipKeys = AttendanceDAL.LoadManualKeys(fromDate, toDate);

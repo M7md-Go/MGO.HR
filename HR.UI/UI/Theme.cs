@@ -27,7 +27,7 @@ namespace HR.UI.UI
             {
                 foreach (FontFamily family in FontFamily.Families)
                 {
-                    if (string.Equals(family.Name, "Cairo", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(family.Name, "Times New Roman", StringComparison.OrdinalIgnoreCase))
                     {
                         return new Font(family, size, FontStyle.Regular);
                     }

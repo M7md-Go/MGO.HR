@@ -95,6 +95,9 @@ Salary             CURRENCY,
 Status             VARCHAR(15),
 IsDeleted          YESNO,
 Notes              LONGCHAR,
+FirstWorkDate      DATETIME,
+NominalHireDate    DATETIME,
+JobKeepDate        DATETIME,
 CreatedAt          DATETIME,
 CreatedBy          LONG,
 UpdatedAt          DATETIME,
@@ -246,6 +249,7 @@ StartDate   DATETIME NOT NULL,
 EndDate     DATETIME NOT NULL,
 DaysCount   LONG NOT NULL,
 Reason      LONGCHAR,
+RejectReason LONGCHAR,
 Status      VARCHAR(12),
 ApprovedBy  LONG,
 CreatedAt   DATETIME,
@@ -638,3 +642,40 @@ INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Integration.ZKTeco.TimeoutSec', '15', 'مهلة اتصال أجهزة البصمة (ثانية)', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Fp.MachineNumber', '1', 'رقم جهاز MachineNumber الافتراضي للاتصال', Now());
+
+CREATE TABLE LongLeaveTypes (
+LongLeaveTypeId   AUTOINCREMENT PRIMARY KEY,
+TypeCode          VARCHAR(20) NOT NULL UNIQUE,
+TypeName          VARCHAR(80) NOT NULL,
+IsLimited         YESNO,
+MaxMonths         LONG,
+IsActive          YESNO,
+Notes             LONGCHAR
+);
+
+CREATE TABLE LongLeaves (
+LongLeaveId  AUTOINCREMENT PRIMARY KEY,
+EmployeeId   LONG NOT NULL,
+TypeId       LONG NOT NULL,
+FromDate     DATETIME NOT NULL,
+ToDate       DATETIME,
+Status       VARCHAR(12),
+Reason       LONGCHAR,
+Notes        LONGCHAR,
+ApprovedBy   LONG,
+CreatedAt    DATETIME,
+CreatedBy    LONG
+);
+
+CREATE INDEX IX_LongLeave_Emp  ON LongLeaves (EmployeeId, FromDate);
+CREATE INDEX IX_LongLeave_Type ON LongLeaves (TypeId);
+CREATE INDEX IX_LongLeave_St   ON LongLeaves (Status, FromDate);
+
+INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
+VALUES ('ChildCare', 'رعاية الطفل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
+INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
+VALUES ('FamilyCare', 'رعاية الأسرة', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
+INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
+VALUES ('Abroad', 'السفر للخارج', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
+INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
+VALUES ('IncomeImprove', 'تحسين الدخل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');

@@ -52,7 +52,7 @@ namespace HR.DAL
         {
             List<LeaveRequestView> rows = Db.ReadList(
                 "SELECT v.LeaveId, v.EmployeeId, e.EmployeeCode, e.FullNameAr, v.LeaveTypeId, t.TypeName, " +
-                "v.StartDate, v.EndDate, v.DaysCount, v.Reason, v.Status, v.ApprovedBy, v.CreatedAt " +
+                "v.StartDate, v.EndDate, v.DaysCount, v.Reason, v.RejectReason, v.Status, v.ApprovedBy, v.CreatedAt " +
                 "FROM (LeaveRequests v INNER JOIN Employees e ON v.EmployeeId = e.EmployeeId) " +
                 "LEFT JOIN LeaveTypes t ON v.LeaveTypeId = t.LeaveTypeId WHERE v.LeaveId = ?",
                 MapRequestView, Db.P(leaveId));
@@ -64,7 +64,7 @@ namespace HR.DAL
         {
             string sql =
                 "SELECT TOP " + maxRows + " v.LeaveId, v.EmployeeId, e.EmployeeCode, e.FullNameAr, v.LeaveTypeId, t.TypeName, " +
-                "v.StartDate, v.EndDate, v.DaysCount, v.Reason, v.Status, v.ApprovedBy, v.CreatedAt " +
+                "v.StartDate, v.EndDate, v.DaysCount, v.Reason, v.RejectReason, v.Status, v.ApprovedBy, v.CreatedAt " +
                 "FROM (LeaveRequests v INNER JOIN Employees e ON v.EmployeeId = e.EmployeeId) " +
                 "LEFT JOIN LeaveTypes t ON v.LeaveTypeId = t.LeaveTypeId WHERE 1 = 1";
             List<OleDbParameter> parameters = new List<OleDbParameter>();
@@ -105,22 +105,36 @@ namespace HR.DAL
             row.EndDate = r.IsDBNull(7) ? (DateTime?)null : r.GetDateTime(7);
             row.DaysCount = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8));
             row.Reason = r.IsDBNull(9) ? null : r.GetString(9);
-            row.Status = r.IsDBNull(10) ? null : r.GetString(10);
-            row.ApprovedBy = r.IsDBNull(11) ? (int?)null : Convert.ToInt32(r.GetValue(11));
-            row.CreatedAt = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12);
+            row.RejectReason = r.IsDBNull(10) ? null : r.GetString(10);
+            row.Status = r.IsDBNull(11) ? null : r.GetString(11);
+            row.ApprovedBy = r.IsDBNull(12) ? (int?)null : Convert.ToInt32(r.GetValue(12));
+            row.CreatedAt = r.IsDBNull(13) ? (DateTime?)null : r.GetDateTime(13);
             return row;
         }
 
         public static int InsertRequest(LeaveRequest request)
         {
-            Db.ExecuteNonQuery(
-                "INSERT INTO LeaveRequests (EmployeeId, LeaveTypeId, StartDate, EndDate, DaysCount, Reason, Status, CreatedAt, CreatedBy) " +
-                "VALUES (?, ?, ?, ?, ?, ?, 'Pending', Now(), ?)",
-                Db.P(request.EmployeeId ?? 0), Db.P(request.LeaveTypeId ?? 0),
-                Db.PDateRequired(request.StartDate), Db.PDateRequired(request.EndDate),
-                Db.P(request.DaysCount ?? 0), Db.P(request.Reason ?? string.Empty),
-                Db.PNullableId(request.CreatedBy));
-            return Convert.ToInt32(Db.ExecuteScalar("SELECT @@IDENTITY"));
+            return Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            {
+                using (OleDbCommand command = new OleDbCommand(
+                    "INSERT INTO LeaveRequests (EmployeeId, LeaveTypeId, StartDate, EndDate, DaysCount, Reason, Status, CreatedAt, CreatedBy) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, 'Pending', Now(), ?)",
+                    connection, transaction))
+                {
+                    command.Parameters.Add(Db.P(request.EmployeeId ?? 0));
+                    command.Parameters.Add(Db.P(request.LeaveTypeId ?? 0));
+                    command.Parameters.Add(Db.PDateRequired(request.StartDate));
+                    command.Parameters.Add(Db.PDateRequired(request.EndDate));
+                    command.Parameters.Add(Db.P(request.DaysCount ?? 0));
+                    command.Parameters.Add(Db.P(request.Reason ?? string.Empty));
+                    command.Parameters.Add(Db.PNullableId(request.CreatedBy));
+                    command.ExecuteNonQuery();
+                }
+                using (OleDbCommand identity = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
+                {
+                    return Convert.ToInt32(identity.ExecuteScalar());
+                }
+            });
         }
 
         public static void UpdateRequest(int leaveId, int leaveTypeId, DateTime startDate, DateTime endDate,
@@ -142,6 +156,20 @@ namespace HR.DAL
             Db.ExecuteNonQuery(
                 "UPDATE LeaveRequests SET Status = ?, ApprovedBy = ? WHERE LeaveId = ?",
                 Db.P(status), Db.PNullableId(approvedBy), Db.P(leaveId));
+        }
+
+        public static void SetRequestStatus(int leaveId, string status, int? approvedBy, string rejectReason)
+        {
+            Db.ExecuteNonQuery(
+                "UPDATE LeaveRequests SET Status = ?, ApprovedBy = ?, RejectReason = ? WHERE LeaveId = ?",
+                Db.P(status), Db.PNullableId(approvedBy), Db.P(rejectReason), Db.P(leaveId));
+        }
+
+        public static void SetRejectReason(int leaveId, string rejectReason)
+        {
+            Db.ExecuteNonQuery(
+                "UPDATE LeaveRequests SET RejectReason = ? WHERE LeaveId = ?",
+                Db.P(rejectReason), Db.P(leaveId));
         }
 
         public static bool HasOverlappingRequests(int employeeId, DateTime startDate, DateTime endDate, int? excludeLeaveId)

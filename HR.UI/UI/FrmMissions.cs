@@ -264,6 +264,11 @@ namespace HR.UI.UI
                 Theme.ShowError("لا يمكن تعديل مأمورية معتمدة.");
                 return;
             }
+            if (mission.Status == MissionBLL.StatusRejected)
+            {
+                Theme.ShowError("لا يمكن تعديل مأمورية مرفوضة — أنشئ مأمورية جديدة.");
+                return;
+            }
             FrmMissionEdit dialog = new FrmMissionEdit(mission.MissionId);
             if (dialog.ShowDialog(this) == DialogResult.OK)
             {

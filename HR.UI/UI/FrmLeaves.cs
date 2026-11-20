@@ -29,6 +29,7 @@ namespace HR.UI.UI
         private Button _btnApprove;
         private Button _btnReject;
         private Button _btnBalances;
+        private Button _btnLong;
         private DataGridView _grid;
         private List<LeaveRequestView> _rows;
 
@@ -126,6 +127,11 @@ namespace HR.UI.UI
             _btnBalances.Height = 30;
             _btnBalances.Click += delegate { OnBalancesClick(); };
 
+            _btnLong = new Button();
+            _btnLong.Text = "إجازات طويلة";
+            _btnLong.Height = 30;
+            _btnLong.Click += delegate { OnLongLeavesClick(); };
+
             toolbar.Controls.Add(_cboStatus);
             toolbar.Controls.Add(lblEmployee);
             toolbar.Controls.Add(_txtEmployee);
@@ -137,6 +143,7 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_btnApprove);
             toolbar.Controls.Add(_btnReject);
             toolbar.Controls.Add(_btnBalances);
+            toolbar.Controls.Add(_btnLong);
 
             _grid = new DataGridView();
             Theme.StyleGrid(_grid);
@@ -222,6 +229,7 @@ namespace HR.UI.UI
                 AddColumn("Status", "الحالة", 80);
                 AddColumn("ApprovedBy", "المُعتمِد", 80);
                 AddColumn("Reason", "السبب", 140);
+                AddColumn("RejectReason", "سبب الرفض", 140);
 
                 foreach (LeaveRequestView request in _rows)
                 {
@@ -239,6 +247,7 @@ namespace HR.UI.UI
                     row.Cells["Status"].Value = TranslateStatus(request.Status);
                     row.Cells["ApprovedBy"].Value = request.ApprovedBy;
                     row.Cells["Reason"].Value = request.Reason;
+                    row.Cells["RejectReason"].Value = request.RejectReason;
                 }
             }
             catch (BusinessException expected)
@@ -272,6 +281,11 @@ namespace HR.UI.UI
             if (request.Status == LeaveBLL.StatusApproved)
             {
                 Theme.ShowError("لا يمكن تعديل طلب معتمد.");
+                return;
+            }
+            if (request.Status == LeaveBLL.StatusRejected)
+            {
+                Theme.ShowError("لا يمكن تعديل طلب مرفوض — استخدم زر سبب الرفض.");
                 return;
             }
             FrmLeaveEdit dialog = new FrmLeaveEdit(request.LeaveId);
@@ -317,27 +331,71 @@ namespace HR.UI.UI
             LeaveRequestView request = SelectedRequest();
             if (request == null)
             {
-                Theme.ShowInfo("اختر طلبًا من القائمة أولًا.");
+                Theme.ShowInfo("اختر طلبًا من القائمة أولاً.");
                 return;
             }
-            if (!Theme.Confirm("رفض طلب إجازة الموظف " + request.EmployeeName + "؟"))
+            if (request.Status == LeaveBLL.StatusApproved)
             {
+                Theme.ShowError("لا يمكن رفض طلب معتمد.");
                 return;
             }
-            try
+            if (request.Status == LeaveBLL.StatusPending)
             {
-                LeaveBLL.Reject(request.LeaveId);
-                Reload();
+                if (!Theme.Confirm("رفض طلب إجازة الموظف " + request.EmployeeName + "؟"))
+                {
+                    return;
+                }
+                FrmRejectReason dialog = new FrmRejectReason("سبب رفض طلب الإجازة", null);
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+                try
+                {
+                    LeaveBLL.Reject(request.LeaveId, dialog.ReasonText);
+                    Theme.ShowInfo("تم رفض الطلب.");
+                    Reload();
+                }
+                catch (BusinessException expected)
+                {
+                    Theme.ShowError(expected.Message);
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FrmLeaves.OnRejectClick");
+                    Theme.ShowError("حدث خطأ أثناء رفض طلب الإجازة.");
+                }
+                return;
             }
-            catch (BusinessException expected)
+            if (request.Status == LeaveBLL.StatusRejected)
             {
-                Theme.ShowError(expected.Message);
+                FrmRejectReason dialog = new FrmRejectReason("تحديث سبب الرفض", request.RejectReason);
+                if (dialog.ShowDialog(this) != DialogResult.OK)
+                {
+                    return;
+                }
+                try
+                {
+                    LeaveBLL.SetRejectReason(request.LeaveId, dialog.ReasonText);
+                    Theme.ShowInfo("تم تحديث سبب الرفض.");
+                    Reload();
+                }
+                catch (BusinessException expected)
+                {
+                    Theme.ShowError(expected.Message);
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FrmLeaves.OnRejectClick");
+                    Theme.ShowError("حدث خطأ أثناء تحديث سبب الرفض.");
+                }
             }
-            catch (Exception unexpected)
-            {
-                Logger.LogError(unexpected, "FrmLeaves.OnRejectClick");
-                Theme.ShowError("حدث خطأ أثناء رفض طلب الإجازة.");
-            }
+        }
+
+        private void OnLongLeavesClick()
+        {
+            FrmLongLeaves dialog = new FrmLongLeaves();
+            dialog.ShowDialog(this);
         }
 
         private void OnBalancesClick()

@@ -38,7 +38,7 @@ namespace HR.DAL
             string sql = "SELECT " + SelectColumns + " FROM Devices";
             if (!includeInactive)
             {
-                sql += " WHERE IsActive = 1";
+                sql += " WHERE IsActive <> 0";   // Jet YESNO stores True as -1; ' = 1' never matches
             }
             sql += " ORDER BY DeviceName";
             return Db.ReadList(sql, MapRow);

@@ -154,6 +154,25 @@ namespace HR.BLL
             AuditBLL.Log("Employees.Delete", "Employees", employeeId.ToString(), employee, null);
         }
 
+        /// <summary>Restores an archived employee back to Active (rule 8 — safe restore, history preserved).</summary>
+        public static void Unarchive(int employeeId, string reason)
+        {
+            AppContext.RequirePermission("Employees.Archive");
+            Employee employee = EmployeeDAL.GetById(employeeId);
+            if (employee == null)
+            {
+                throw new BusinessException("الموظف غير موجود.");
+            }
+            if (employee.IsDeleted != true)
+            {
+                throw new BusinessException("الموظف غير مؤرشف.");
+            }
+            EmployeeDAL.Unarchive(employeeId, CurrentUserId());
+            string auditReason = string.IsNullOrEmpty(reason) ? "" : " - " + reason;
+            RecordHistory(employeeId, "Archive", "Status", StatusArchived, StatusActive, "استعادة من الأرشفة" + auditReason);
+            AuditBLL.Log("Employees.Unarchive", "Employees", employeeId.ToString(), employee, null);
+        }
+
         private static void ChangeLifecycle(int employeeId, string newStatus, string auditAction, string reason)
         {
             Employee employee = EmployeeDAL.GetById(employeeId);

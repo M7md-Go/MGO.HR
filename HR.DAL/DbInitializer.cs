@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.OleDb;
 using System.IO;
 using System.Text;
@@ -25,6 +26,90 @@ namespace HR.DAL
             {
                 CreateDatabaseFile(databasePath);
                 ExecuteSchemaScript(databasePath);
+                return;
+            }
+            ApplySchemaUpgrades(databasePath);
+        }
+
+        /// <summary>
+        /// Idempotent in-place upgrade for databases created by an older schema:
+        /// adds missing columns/tables declaratively, never touches existing data.
+        /// </summary>
+        public static void ApplySchemaUpgrades(string databasePath)
+        {
+            using (OleDbConnection connection = new OleDbConnection(Db.BuildConnectionString(databasePath)))
+            {
+                connection.Open();
+
+                EnsureColumn(connection, "Employees", "FirstWorkDate", "DATETIME");
+                EnsureColumn(connection, "Employees", "NominalHireDate", "DATETIME");
+                EnsureColumn(connection, "Employees", "JobKeepDate", "DATETIME");
+                EnsureColumn(connection, "LeaveRequests", "RejectReason", "LONGCHAR");
+
+                if (!TableExists(connection, "LongLeaveTypes"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE LongLeaveTypes (" +
+                        "LongLeaveTypeId AUTOINCREMENT PRIMARY KEY, " +
+                        "TypeCode VARCHAR(20) NOT NULL UNIQUE, " +
+                        "TypeName VARCHAR(80) NOT NULL, " +
+                        "IsLimited YESNO, MaxMonths LONG, IsActive YESNO, Notes LONGCHAR)");
+                    ExecuteUpgrade(connection,
+                        "INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes) VALUES ('ChildCare', 'رعاية الطفل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم')");
+                    ExecuteUpgrade(connection,
+                        "INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes) VALUES ('FamilyCare', 'رعاية الأسرة', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم')");
+                    ExecuteUpgrade(connection,
+                        "INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes) VALUES ('Abroad', 'السفر للخارج', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم')");
+                    ExecuteUpgrade(connection,
+                        "INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes) VALUES ('IncomeImprove', 'تحسين الدخل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم')");
+                }
+                if (!TableExists(connection, "LongLeaves"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE LongLeaves (" +
+                        "LongLeaveId AUTOINCREMENT PRIMARY KEY, " +
+                        "EmployeeId LONG NOT NULL, TypeId LONG NOT NULL, " +
+                        "FromDate DATETIME NOT NULL, ToDate DATETIME, " +
+                        "Status VARCHAR(12), Reason LONGCHAR, Notes LONGCHAR, " +
+                        "ApprovedBy LONG, CreatedAt DATETIME, CreatedBy LONG)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_LongLeave_Emp ON LongLeaves (EmployeeId, FromDate)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_LongLeave_Type ON LongLeaves (TypeId)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_LongLeave_St ON LongLeaves (Status, FromDate)");
+                }
+            }
+        }
+
+        private static bool TableExists(OleDbConnection connection, string tableName)
+        {
+            DataTable tables = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Tables,
+                new object[] { null, null, tableName, "TABLE" });
+            return tables != null && tables.Rows.Count > 0;
+        }
+
+        private static bool ColumnExists(OleDbConnection connection, string tableName, string columnName)
+        {
+            DataTable columns = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns,
+                new object[] { null, null, tableName, columnName });
+            return columns != null && columns.Rows.Count > 0;
+        }
+
+        private static void EnsureColumn(OleDbConnection connection, string tableName, string columnName, string columnType)
+        {
+            if (ColumnExists(connection, tableName, columnName))
+            {
+                return;
+            }
+            ExecuteUpgrade(connection, "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnType);
+        }
+
+        private static void ExecuteUpgrade(OleDbConnection connection, string statement)
+        {
+            using (OleDbCommand command = new OleDbCommand(statement, connection))
+            {
+                command.ExecuteNonQuery();
             }
         }
 

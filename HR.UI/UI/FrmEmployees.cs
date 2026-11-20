@@ -381,9 +381,18 @@ namespace HR.UI.UI
             }
             try
             {
-                EmployeeBLL.Activate(employee.EmployeeId, "تفعيل من شاشة الموظفين");
-                Search(null);
-                Theme.ShowInfo("تم إعادة تفعيل الموظف.");
+                if (employee.IsDeleted == true)
+                {
+                    EmployeeBLL.Unarchive(employee.EmployeeId, "استعادة من شاشة الموظفين");
+                    Search(null);
+                    Theme.ShowInfo("تم استعادة الموظف من الأرشفة وإعادته لتاريخ العمل.");
+                }
+                else
+                {
+                    EmployeeBLL.Activate(employee.EmployeeId, "تفعيل من شاشة الموظفين");
+                    Search(null);
+                    Theme.ShowInfo("تم إعادة تفعيل الموظف.");
+                }
             }
             catch (BusinessException expected)
             {
