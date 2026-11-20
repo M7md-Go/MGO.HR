@@ -280,14 +280,14 @@ namespace HR.DAL
         }
 
         /// <summary>Soft delete: flags IsDeleted and sets Status = Archived.</summary>
-        public static void SoftDelete(int employeeId, int userId)
+        public static void SoftDelete(int employeeId, int? userId)
         {
             string sql = "UPDATE Employees SET IsDeleted = 1, Status = 'Archived', UpdatedAt = ?, UpdatedBy = ? WHERE EmployeeId = ?";
             Db.ExecuteNonQuery(sql, Db.PDateRequired(DateTime.Now), Db.PNullableId(userId), Db.P(employeeId));
         }
 
         /// <summary>Changes lifecycle status: Active / Suspended / Archived (BR-02).</summary>
-        public static void SetStatus(int employeeId, string status, int userId)
+        public static void SetStatus(int employeeId, string status, int? userId)
         {
             string sql = "UPDATE Employees SET Status = ?, UpdatedAt = ?, UpdatedBy = ? WHERE EmployeeId = ?";
             Db.ExecuteNonQuery(sql, Db.P(status), Db.PDateRequired(DateTime.Now), Db.PNullableId(userId), Db.P(employeeId));

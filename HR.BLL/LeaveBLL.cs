@@ -238,14 +238,14 @@ namespace HR.BLL
         {
             if (string.Equals(type.LeaveTypeCode, "Hajj", StringComparison.Ordinal))
             {
-                int lifetime = LeaveDAL.UsedDaysAllYears(request.EmployeeId ?? 0, type.LeaveTypeId ?? 0);
+                int lifetime = LeaveDAL.UsedDaysAllYears(request.EmployeeId ?? 0, type.LeaveTypeId);
                 if (lifetime > 0)
                 {
                     throw new BusinessException("إجازة الحج تُمنح مرة واحدة في العمر — المُستهلَك سابقاً: " + lifetime + " يوماً.");
                 }
             }
             int year = (request.StartDate ?? DateTime.Now).Year;
-            LeaveBalance balance = MaterializeBalance(request.EmployeeId ?? 0, year, type.LeaveTypeId ?? 0);
+            LeaveBalance balance = MaterializeBalance(request.EmployeeId ?? 0, year, type.LeaveTypeId);
             if ((request.DaysCount ?? 0) > (balance.Remaining ?? 0))
             {
                 throw new BusinessException("الرصيد لا يكفي — المطلوب: " + request.DaysCount +
@@ -261,9 +261,9 @@ namespace HR.BLL
                 return;
             }
             int year = (request.StartDate ?? DateTime.Now).Year;
-            int previouslyUsed = LeaveDAL.UsedDays(stored.EmployeeId ?? 0, year, type.LeaveTypeId ?? 0);
+            int previouslyUsed = LeaveDAL.UsedDays(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
             int newUsed = previouslyUsed - (stored.DaysCount ?? 0) + (request.DaysCount ?? 0);
-            LeaveBalance balance = MaterializeBalance(stored.EmployeeId ?? 0, year, type.LeaveTypeId ?? 0);
+            LeaveBalance balance = MaterializeBalance(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
             if (newUsed > (balance.QuotaDays ?? 0))
             {
                 throw new BusinessException("الرصيد بعد التعديل يتجاوز الحصة — الحصة: " + (balance.QuotaDays ?? 0) +

@@ -231,16 +231,14 @@ namespace HR.BLL
 
                 for (int day = 1; day < daysInMonth; day++)
                 {
-                    int? shiftAId;
-                    int? shiftBId;
-                    days.TryGetValue(day, out shiftAId);
-                    days.TryGetValue(day + 1, out shiftBId);
-                    if (shiftAId == null || shiftBId == null)
+                    int shiftAId;
+                    int shiftBId;
+                    if (!days.TryGetValue(day, out shiftAId) || !days.TryGetValue(day + 1, out shiftBId))
                     {
                         continue;
                     }
-                    Shift shiftA = shifts[shiftAId.Value];
-                    Shift shiftB = shifts[shiftBId.Value];
+                    Shift shiftA = shifts[shiftAId];
+                    Shift shiftB = shifts[shiftBId];
                     if (IsRest(shiftA) || IsRest(shiftB) || shiftA.DurationHrs == null || shiftB.DurationHrs == null)
                     {
                         continue;
@@ -281,7 +279,7 @@ namespace HR.BLL
                     bool weekComplete = true;
                     for (int offset = 0; offset < 7; offset++)
                     {
-                        int? shiftId;
+                        int shiftId;
                         if (!days.TryGetValue(day + offset, out shiftId) || !shifts.ContainsKey(shiftId))
                         {
                             weekComplete = false;
