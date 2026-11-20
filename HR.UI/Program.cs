@@ -10,12 +10,23 @@ namespace HR.UI
     internal static class Program
     {
         [STAThread]
-        private static void Main()
+        private static void Main(string[] args)
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.ThreadException += OnThreadException;
             AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
+#if DEBUG
+            foreach (string arg in args)
+            {
+                if (string.Equals(arg, "/preview", StringComparison.OrdinalIgnoreCase))
+                {
+                    RunPreviewHost();
+                    return;
+                }
+            }
+#endif
 
             try
             {
@@ -52,6 +63,26 @@ namespace HR.UI
                 }
             }
         }
+
+#if DEBUG
+        /// <summary>DEBUG-only preview loop: DB bootstrap then the preview gallery (no login flow).</summary>
+        private static void RunPreviewHost()
+        {
+            try
+            {
+                BootstrapBLL.EnsureDatabase();
+                UserBLL.InitializeFirstAdmin();
+                SettingsBLL.Refresh();
+            }
+            catch (Exception initializationError)
+            {
+                Logger.LogError(initializationError, "Program.RunPreviewHost — bootstrap failed");
+                Theme.ShowError("تعذر تهيئة قاعدة البيانات لوضع المعاينة. راجع مجلد السجلات (Logs).");
+                return;
+            }
+            Application.Run(new FrmPreviewHost());
+        }
+#endif
 
         private static bool _crashHandling = false;
 
