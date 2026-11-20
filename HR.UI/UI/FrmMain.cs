@@ -54,9 +54,11 @@ namespace HR.UI.UI
             ToolStripMenuItem miReports = new ToolStripMenuItem("التقارير");
             ToolStripMenuItem miAdmin = new ToolStripMenuItem("الإدارة");
             ToolStripMenuItem miUsers = new ToolStripMenuItem("المستخدمون والصلاحيات");
+            ToolStripMenuItem miAudit = new ToolStripMenuItem("سجل العمليات");
             ToolStripMenuItem miBackup = new ToolStripMenuItem("النسخ الاحتياطي");
             ToolStripMenuItem miSettings = new ToolStripMenuItem("الإعدادات");
             miAdmin.DropDownItems.Add(miUsers);
+            miAdmin.DropDownItems.Add(miAudit);
             miAdmin.DropDownItems.Add(miBackup);
             miAdmin.DropDownItems.Add(miSettings);
 
@@ -71,7 +73,8 @@ namespace HR.UI.UI
             miPenalties.Click += delegate { ShowForm(new FrmPenalties()); };
             miDashboard.Click += delegate { ShowPhaseNotice(11); };
             miReports.Click += delegate { ShowForm(new FrmReports()); };
-            miUsers.Click += delegate { ShowPhaseNotice(10); };
+            miUsers.Click += delegate { ShowForm(new FrmUsers()); };
+            miAudit.Click += delegate { ShowForm(new FrmAuditLog()); };
             miBackup.Click += delegate { ShowPhaseNotice(12); };
             miSettings.Click += delegate { ShowPhaseNotice(2); };
             miLogout.Click += OnLogoutClick;

@@ -218,8 +218,166 @@ namespace HR.BLL
             {
                 throw new BusinessException("لا يمكنك إيقاف حسابك الحالي.");
             }
+            if (disabled)
+            {
+                User target = UserDAL.GetById(userId);
+                if (target != null && target.RoleId != null)
+                {
+                    Role targetRole = UserDAL.GetRole(target.RoleId.Value);
+                    if (targetRole != null && targetRole.IsAdmin == true && UserDAL.CountActiveAdmins() <= 1)
+                    {
+                        throw new BusinessException("لا يمكن إيقاف آخر مسؤول نشط في النظام.");
+                    }
+                }
+            }
             UserDAL.SetDisabled(userId, disabled);
             AuditBLL.Log("Users.SetDisabled", "Users", userId.ToString(), null, disabled ? "Disabled" : "Enabled");
+        }
+
+        // ---------------- Phase 10: browse + profile + security ----------------
+
+        /// <summary>User list for the management screen (never any hash) — permission "Users.Manage".</summary>
+        public static List<UserView> ListUsers()
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.ListUsers();
+        }
+
+        /// <summary>Raw permission keys granted to a role (permission "Users.Manage").</summary>
+        public static List<string> GetRoleKeys(int roleId)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.GetRolePermissionKeys(roleId);
+        }
+
+        /// <summary>Per-user overrides for the matrix screen (permission "Users.Manage").</summary>
+        public static List<KeyValuePair<string, bool>> GetUserOverrides(int userId)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.GetUserOverrides(userId);
+        }
+
+        /// <summary>Permission catalog for the matrix screen — permission "Users.Manage".</summary>
+        public static List<Permission> GetPermissionsCatalog()
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.GetAllPermissions();
+        }
+
+        /// <summary>Role list for combos — permission "Users.Manage".</summary>
+        public static List<Role> GetRoles()
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.GetAllRoles();
+        }
+
+        /// <summary>
+        /// Updates username / full name / role / department (rule 21 + BR-20):
+        /// unique username, a user cannot change his own role, and the last
+        /// active admin account cannot be demoted (audit "Users.Update").
+        /// </summary>
+        public static void UpdateUser(int userId, string username, string fullName, int roleId, int? deptId)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                throw new BusinessException("اسم المستخدم إلزامي.");
+            }
+            username = username.Trim();
+            if (UserDAL.UsernameExists(username, userId))
+            {
+                throw new BusinessException("اسم المستخدم '" + username + "' مستخدم بالفعل.");
+            }
+            User user = UserDAL.GetById(userId);
+            if (user == null)
+            {
+                throw new BusinessException("المستخدم غير موجود.");
+            }
+            if (AppContext.CurrentUser != null && AppContext.CurrentUser.UserId == userId && user.RoleId != roleId)
+            {
+                throw new BusinessException("لا يمكن تغيير دور حسابك الحالي.");
+            }
+            if (user.RoleId != null && user.RoleId != roleId)
+            {
+                Role currentRole = UserDAL.GetRole(user.RoleId.Value);
+                if (currentRole != null && currentRole.IsAdmin == true && UserDAL.CountActiveAdmins() <= 1)
+                {
+                    throw new BusinessException("لا يمكن تنزيل دور آخر مسؤول نشط في النظام.");
+                }
+            }
+            UserDAL.UpdateProfile(userId, username, fullName, roleId, deptId);
+            AuditBLL.Log("Users.Update", "Users", userId.ToString(), user.Username, username);
+        }
+
+        /// <summary>Admin password reset (permission "Users.Manage") — audit without any secret value.</summary>
+        public static void ResetPassword(int userId, string newPassword)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            User user = UserDAL.GetById(userId);
+            if (user == null)
+            {
+                throw new BusinessException("المستخدم غير موجود.");
+            }
+            ValidatePassword(newPassword);
+            string salt = PasswordHasher.NewSalt();
+            UserDAL.ChangePassword(userId, PasswordHasher.Hash(newPassword, salt), salt);
+            UserDAL.UnlockUser(userId);
+            AuditBLL.Log("Users.ResetPassword", "Users", userId.ToString(), null, user.Username);
+        }
+
+        /// <summary>
+        /// Grants / revokes a permission on a role (permission "Users.Manage").
+        /// The Admin role is intentionally not editable: it is IsAdmin and has
+        /// every permission by definition (rule 36 decision).
+        /// </summary>
+        public static void SetRolePermission(int roleId, int permissionId, bool granted)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            Role role = UserDAL.GetRole(roleId);
+            if (role == null)
+            {
+                throw new BusinessException("الدور غير موجود.");
+            }
+            if (role.IsAdmin == true)
+            {
+                throw new BusinessException("دور Admin يملك جميع الصلاحيات ولا يجوز تعديل مصفوفته.");
+            }
+            if (granted)
+            {
+                UserDAL.GrantToRole(roleId, permissionId);
+                AuditBLL.Log("Permissions.Grant", "RolePermissions", roleId + ":" + permissionId, null, "Granted");
+            }
+            else
+            {
+                UserDAL.RevokeFromRole(roleId, permissionId);
+                AuditBLL.Log("Permissions.Revoke", "RolePermissions", roleId + ":" + permissionId, "Granted", null);
+            }
+        }
+
+        /// <summary>
+        /// Sets (or clears with granted = null) a per-user override on top of
+        /// the role matrix (permission "Users.Manage").
+        /// </summary>
+        public static void SetUserOverride(int userId, int permissionId, bool? granted)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            User user = UserDAL.GetById(userId);
+            if (user == null)
+            {
+                throw new BusinessException("المستخدم غير موجود.");
+            }
+            if (user.RoleId != null)
+            {
+                Role role = UserDAL.GetRole(user.RoleId.Value);
+                if (role != null && role.IsAdmin == true)
+                {
+                    throw new BusinessException("طالما الحساب بدور Admin فلا حاجة لتجاوزات صلاحيات.");
+                }
+            }
+            UserDAL.SetUserOverride(userId, permissionId, granted);
+            AuditBLL.Log("Permissions.UserOverride", "UserPermissions",
+                userId + ":" + permissionId, null,
+                granted == null ? "Default" : (granted.Value ? "Granted" : "Revoked"));
         }
 
         /// <summary>Password policy: at least 8 characters, letters and digits (rule 21).</summary>

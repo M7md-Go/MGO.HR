@@ -209,5 +209,126 @@ namespace HR.DAL
                 },
                 Db.P(permissionKey));
         }
+
+        /// <summary>User + role + department join rows for management screens (never any hash).</summary>
+        public static List<UserView> ListUsers()
+        {
+            string sql =
+                "SELECT u.UserId, u.Username, u.FullName, u.RoleId, r.RoleName, u.DeptId, " +
+                "dep.DepartmentName, u.IsDisabled, u.IsLocked, u.FailedLogins, u.LastLogin " +
+                "FROM ((Users u INNER JOIN Roles r ON u.RoleId = r.RoleId) " +
+                "LEFT JOIN Departments dep ON u.DeptId = dep.DepartmentId) " +
+                "ORDER BY u.Username";
+            return Db.ReadList(sql, delegate(OleDbDataReader reader)
+            {
+                UserView view = new UserView();
+                view.UserId = reader.GetInt32(0);
+                view.Username = reader.IsDBNull(1) ? null : reader.GetString(1);
+                view.FullName = reader.IsDBNull(2) ? null : reader.GetString(2);
+                view.RoleId = reader.IsDBNull(3) ? (int?)null : reader.GetInt32(3);
+                view.RoleName = reader.IsDBNull(4) ? null : reader.GetString(4);
+                view.DeptId = reader.IsDBNull(5) ? (int?)null : reader.GetInt32(5);
+                view.DeptName = reader.IsDBNull(6) ? null : reader.GetString(6);
+                view.IsDisabled = reader.IsDBNull(7) ? (bool?)null : reader.GetBoolean(7);
+                view.IsLocked = reader.IsDBNull(8) ? (bool?)null : reader.GetBoolean(8);
+                view.FailedLogins = reader.IsDBNull(9) ? (int?)null : reader.GetInt32(9);
+                view.LastLogin = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10);
+                return view;
+            });
+        }
+
+        /// <summary>Updates username / full name / role / department (Profile only, never the password).</summary>
+        public static void UpdateProfile(int userId, string username, string fullName, int roleId, int? deptId)
+        {
+            string sql = "UPDATE Users SET Username = ?, FullName = ?, RoleId = ?, DeptId = ? WHERE UserId = ?";
+            Db.ExecuteNonQuery(sql, Db.P(username), Db.P(fullName), Db.P(roleId), Db.PNullableId(deptId), Db.P(userId));
+        }
+
+        /// <summary>All permission definitions for the matrix screen.</summary>
+        public static List<Permission> GetAllPermissions()
+        {
+            return Db.ReadList("SELECT PermissionId, PermissionKey, DescriptionAr FROM Permissions ORDER BY PermissionKey",
+                delegate(OleDbDataReader reader)
+                {
+                    Permission permission = new Permission();
+                    permission.PermissionId = reader.GetInt32(0);
+                    permission.PermissionKey = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    permission.DescriptionAr = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    return permission;
+                });
+        }
+
+        /// <summary>All roles for the matrix / user edit combos.</summary>
+        public static List<Role> GetAllRoles()
+        {
+            return Db.ReadList("SELECT RoleId, RoleName, IsAdmin FROM Roles ORDER BY RoleName",
+                delegate(OleDbDataReader reader)
+                {
+                    Role role = new Role();
+                    role.RoleId = reader.GetInt32(0);
+                    role.RoleName = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    role.IsAdmin = reader.IsDBNull(2) ? (bool?)null : reader.GetBoolean(2);
+                    return role;
+                });
+        }
+
+        /// <summary>Active (enabled, unlocked) accounts whose role is an admin role.</summary>
+        public static long CountActiveAdmins()
+        {
+            return Db.Count(
+                "SELECT COUNT(*) FROM (Users u INNER JOIN Roles r ON u.RoleId = r.RoleId) " +
+                "WHERE r.IsAdmin = true AND (u.IsDisabled = false OR u.IsDisabled IS NULL) " +
+                "AND (u.IsLocked = false OR u.IsLocked IS NULL)");
+        }
+
+        /// <summary>Sets (or clears with granted = null) a per-user permission override.</summary>
+        public static void SetUserOverride(int userId, int permissionId, bool? granted)
+        {
+            if (granted == null)
+            {
+                Db.ExecuteNonQuery("DELETE FROM UserPermissions WHERE UserId = ? AND PermissionId = ?",
+                    Db.P(userId), Db.P(permissionId));
+                return;
+            }
+            string update = "UPDATE UserPermissions SET IsGranted = ? WHERE UserId = ? AND PermissionId = ?";
+            int affected = Db.ExecuteNonQuery(update, Db.PBool(granted), Db.P(userId), Db.P(permissionId));
+            if (affected == 0)
+            {
+                try
+                {
+                    Db.ExecuteNonQuery("INSERT INTO UserPermissions (UserId, PermissionId, IsGranted) VALUES (?, ?, ?)",
+                        Db.P(userId), Db.P(permissionId), Db.PBool(granted));
+                }
+                catch (OleDbException)
+                {
+                    // Duplicate (UserId, PermissionId) via UQ_UserPerm: a concurrent write already inserted the row.
+                }
+            }
+        }
+
+        /// <summary>Recent login attempts for the session-security view.</summary>
+        public static List<LoginHistory> SearchLoginHistory(int? userId, int maxRows)
+        {
+            StringBuilder sql = new StringBuilder(
+                "SELECT TOP " + maxRows + " LoginId, UserId, AttemptTime, Success, MachineName, IpAddress FROM LoginHistory");
+            List<OleDbParameter> parameters = new List<OleDbParameter>();
+            if (userId != null)
+            {
+                sql.Append(" WHERE UserId = ?");
+                parameters.Add(Db.P(userId));
+            }
+            sql.Append(" ORDER BY AttemptTime DESC, LoginId DESC");
+            return Db.ReadList(sql.ToString(), delegate(OleDbDataReader reader)
+            {
+                LoginHistory history = new LoginHistory();
+                history.LoginId = reader.GetInt32(0);
+                history.UserId = reader.IsDBNull(1) ? (int?)null : reader.GetInt32(1);
+                history.AttemptTime = reader.IsDBNull(2) ? (DateTime?)null : reader.GetDateTime(2);
+                history.Success = reader.IsDBNull(3) ? (bool?)null : reader.GetBoolean(3);
+                history.MachineName = reader.IsDBNull(4) ? null : reader.GetString(4);
+                history.IpAddress = reader.IsDBNull(5) ? null : reader.GetString(5);
+                return history;
+            }, parameters.ToArray());
+        }
     }
 }

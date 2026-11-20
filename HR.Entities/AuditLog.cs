@@ -33,5 +33,8 @@ namespace HR.Entities
 
         /// <summary>IpAddress.</summary>
         public string IpAddress { get; set; }
+
+        /// <summary>Username of UserId (resolved by JOIN, not a table column).</summary>
+        public string Username { get; set; }
     }
 }

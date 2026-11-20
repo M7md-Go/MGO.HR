@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.OleDb;
+using System.Text;
 using HR.Entities;
 
 namespace HR.DAL
@@ -37,16 +38,19 @@ namespace HR.DAL
             audit.NewValue = reader.IsDBNull(7) ? null : reader.GetString(7);
             audit.MachineName = reader.IsDBNull(8) ? null : reader.GetString(8);
             audit.IpAddress = reader.IsDBNull(9) ? null : reader.GetString(9);
+            audit.Username = reader.IsDBNull(10) ? null : reader.GetString(10);
             return audit;
         }
 
-        private const string SelectColumns = "AuditId, UserId, ActionName, ActionTime, TableName, RecordId, OldValue, NewValue, MachineName, IpAddress";
+        private const string SelectColumns =
+            "a.AuditId, a.UserId, a.ActionName, a.ActionTime, a.TableName, a.RecordId, a.OldValue, a.NewValue, a.MachineName, a.IpAddress, u.Username";
 
-        /// <summary>Recent audit trail with optional filters (action/table/date range).</summary>
+        /// <summary>Recent audit trail with optional filters (action/table/date range), joined to Users for the username.</summary>
         public static List<AuditLog> Search(string actionName, string tableName, DateTime? fromDate, DateTime? toDate, int maxRows)
         {
             StringBuilder sql = new StringBuilder(
-                "SELECT TOP " + maxRows + " " + SelectColumns + " FROM AuditLogs WHERE 1 = 1");
+                "SELECT TOP " + maxRows + " " + SelectColumns +
+                " FROM (AuditLogs a LEFT JOIN Users u ON a.UserId = u.UserId) WHERE 1 = 1");
             List<OleDbParameter> parameters = new List<OleDbParameter>();
 
             if (!string.IsNullOrWhiteSpace(actionName))
