@@ -43,7 +43,21 @@ namespace HR.DAL
             Catalog catalog = new CatalogClass();
             try
             {
-                catalog.Create(Db.BuildConnectionString(databasePath) + ";Jet OLEDB:Engine Type=5");
+                OleDbConnectionStringBuilder createBuilder = new OleDbConnectionStringBuilder();
+                createBuilder.Provider = "Microsoft.Jet.OLEDB.4.0";
+                createBuilder.DataSource = databasePath;
+                createBuilder["Jet OLEDB:Engine Type"] = 5;
+                try
+                {
+                    catalog.Create(createBuilder.ConnectionString);
+                }
+                catch (System.Runtime.InteropServices.COMException createError)
+                {
+                    throw new InvalidOperationException(
+                        "فشل إنشاء ملف قاعدة البيانات في: " + databasePath +
+                        " — تأكد من صلاحية الكتابة في المجلد ومن توفر محرك Jet OLEDB 4.0 (32-بت). التفصيل: " +
+                        createError.Message, createError);
+                }
             }
             finally
             {
