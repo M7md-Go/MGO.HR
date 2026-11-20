@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using HR.DAL;
 using HR.Entities;
 using HR.Helpers;
 
