@@ -32,13 +32,16 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
+        <ProjectReference Include="..\HR.Entities\HR.Entities.csproj">
+      <Project>{27625E45-7F8E-4904-9EED-C6D3AFA4AE74}</Project>
+      <Name>HR.Entities</Name>
+    </ProjectReference>
+<Reference Include="System" />
     <Reference Include="System.Configuration" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="**\*.cs" />
   </ItemGroup>  <ItemGroup>
-    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
 
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

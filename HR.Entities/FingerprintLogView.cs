@@ -1,3 +1,4 @@
+using System;
 namespace HR.Entities
 {
     /// <summary>Rendered row of the raw fingerprint log browser (joined view).</summary>
