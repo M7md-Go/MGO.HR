@@ -33,9 +33,9 @@ namespace HR.BLL
             {
                 throw new ArgumentNullException("filter");
             }
-            if (filter.PageSize <= 0 || filter.PageSize > 500)
+            if (filter.PageSize <= 0 || filter.PageSize > 10000)
             {
-                filter.PageSize = 100;
+                filter.PageSize = 10000;
             }
             return EmployeeDAL.Search(filter);
         }

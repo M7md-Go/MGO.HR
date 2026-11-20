@@ -50,6 +50,10 @@
       <Project>{8270f338-f987-4c9f-ab2a-6b12b203caa6}</Project>
       <Name>HR.Helpers</Name>
     </ProjectReference>
+    <ProjectReference Include="..\HR.Services\HR.Services.csproj">
+      <Project>{0c9f52a8-6e4d-4b12-9a73-2d5f8c1a47e6}</Project>
+      <Name>HR.Services</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />

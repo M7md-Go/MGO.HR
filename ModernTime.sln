@@ -8,6 +8,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.DAL", "HR.DAL\HR.DAL.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.BLL", "HR.BLL\HR.BLL.csproj", "{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.Services", "HR.Services\HR.Services.csproj", "{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HR.UI", "HR.UI\HR.UI.csproj", "{B4A71C2E-53F9-4E1D-8C0F-96AC2D8B50E3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x86 = Debug|x86
@@ -30,6 +34,14 @@ Global
 		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Debug|x86.Build.0 = Debug|AnyCPU
 		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Release|x86.ActiveCfg = Release|AnyCPU
 		{D797A58A-82C1-4D67-8D7F-FAE50F0FB02E}.Release|x86.Build.0 = Release|AnyCPU
+		{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}.Debug|x86.Build.0 = Debug|AnyCPU
+		{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}.Release|x86.ActiveCfg = Release|AnyCPU
+		{0C9F52A8-6E4D-4B12-9A73-2D5F8C1A47E6}.Release|x86.Build.0 = Release|AnyCPU
+		{B4A71C2E-53F9-4E1D-8C0F-96AC2D8B50E3}.Debug|x86.ActiveCfg = Debug|AnyCPU
+		{B4A71C2E-53F9-4E1D-8C0F-96AC2D8B50E3}.Debug|x86.Build.0 = Debug|AnyCPU
+		{B4A71C2E-53F9-4E1D-8C0F-96AC2D8B50E3}.Release|x86.ActiveCfg = Release|AnyCPU
+		{B4A71C2E-53F9-4E1D-8C0F-96AC2D8B50E3}.Release|x86.Build.0 = Release|AnyCPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

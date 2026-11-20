@@ -60,7 +60,7 @@ namespace HR.UI.UI
             miOrg.Click += delegate { ShowForm(new FrmLookupManager()); };
             miShifts.Click += delegate { ShowForm(new FrmShifts()); };
             miMonthly.Click += delegate { ShowForm(new FrmMonthlySchedule()); };
-            miFingerprint.Click += delegate { ShowPhaseNotice(6); };
+            miFingerprint.Click += delegate { ShowForm(new FrmDevices()); };
             miDashboard.Click += delegate { ShowPhaseNotice(11); };
             miReports.Click += delegate { ShowPhaseNotice(9); };
             miUsers.Click += delegate { ShowPhaseNotice(10); };

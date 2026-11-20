@@ -586,4 +586,5 @@ VALUES ('Org.CompanyNameAr',          'Modern Time', 'اسم المؤسسة',   
        ('Backup.AutoTime',            '23:30',       'وقت النسخ التلقائي',                     Now()),
        ('Backup.RetentionDays',       '30',          'الاحتفاظ بالنسخ (يوم)',                  Now()),
        ('Arch.ActivePeriodDays',      '1095',        'مدة الاحتفاظ بالبيانات النشطة (يوم)',    Now()),
-       ('Integration.ZKTeco.TimeoutSec', '15',       'مهلة اتصال أجهزة البصمة (ثانية)',        Now());
+       ('Integration.ZKTeco.TimeoutSec', '15',       'مهلة اتصال أجهزة البصمة (ثانية)',        Now()),
+       ('Fp.MachineNumber',           '1',           'رقم جهاز MachineNumber الافتراضي للاتصال', Now());
