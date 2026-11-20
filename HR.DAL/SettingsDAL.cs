@@ -10,6 +10,22 @@ namespace HR.DAL
         private static readonly object SyncRoot = new object();
         private static Dictionary<string, string> _cache;
 
+        /// <summary>Full settings catalog (key, value, description) for the settings screen.</summary>
+        public static List<AppSetting> GetSettings()
+        {
+            return Db.ReadList(
+                "SELECT SettingKey, SettingValue, SettingDesc, UpdatedAt FROM AppSettings ORDER BY SettingKey",
+                delegate(OleDbDataReader reader)
+                {
+                    AppSetting setting = new AppSetting();
+                    setting.SettingKey = reader.GetString(0);
+                    setting.SettingValue = reader.IsDBNull(1) ? null : reader.GetString(1);
+                    setting.SettingDesc = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    setting.UpdatedAt = reader.IsDBNull(3) ? (DateTime?)null : reader.GetDateTime(3);
+                    return setting;
+                });
+        }
+
         /// <summary>Loads all settings once; callers pass forceReload after key changes.</summary>
         public static Dictionary<string, string> GetAll(bool forceReload)
         {

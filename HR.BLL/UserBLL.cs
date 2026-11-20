@@ -264,6 +264,13 @@ namespace HR.BLL
             return UserDAL.GetAllPermissions();
         }
 
+        /// <summary>Recent login attempts — permission "Audit.View" (security trail).</summary>
+        public static List<LoginHistory> GetLoginHistory(int? userId, int maxRows)
+        {
+            AppContext.RequirePermission("Audit.View");
+            return UserDAL.SearchLoginHistory(userId, maxRows);
+        }
+
         /// <summary>Role list for combos — permission "Users.Manage".</summary>
         public static List<Role> GetRoles()
         {

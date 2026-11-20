@@ -75,6 +75,13 @@ namespace HR.BLL
             return fallback;
         }
 
+        /// <summary>Full settings catalog (key, value, description) for the settings screen.</summary>
+        public static List<AppSetting> ListSettings()
+        {
+            AppContext.RequirePermission("Settings.Manage");
+            return SettingsDAL.GetSettings();
+        }
+
         /// <summary>Saves a setting (permission "Settings.Manage") with an audit entry.</summary>
         public static void Save(string key, string value)
         {

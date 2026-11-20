@@ -64,9 +64,13 @@ namespace HR.UI.UI
             ToolStripMenuItem miAudit = new ToolStripMenuItem("سجل العمليات");
             ToolStripMenuItem miBackup = new ToolStripMenuItem("النسخ الاحتياطي");
             ToolStripMenuItem miSettings = new ToolStripMenuItem("الإعدادات");
+            ToolStripMenuItem miArchive = new ToolStripMenuItem("الأرشفة");
+            ToolStripMenuItem miLoginHistory = new ToolStripMenuItem("سجل الدخول");
             miAdmin.DropDownItems.Add(miUsers);
             miAdmin.DropDownItems.Add(miAudit);
             miAdmin.DropDownItems.Add(miBackup);
+            miAdmin.DropDownItems.Add(miArchive);
+            miAdmin.DropDownItems.Add(miLoginHistory);
             miAdmin.DropDownItems.Add(miSettings);
 
             miEmployees.Click += delegate { ShowForm(new FrmEmployees()); };
@@ -83,7 +87,9 @@ namespace HR.UI.UI
             miUsers.Click += delegate { ShowForm(new FrmUsers()); };
             miAudit.Click += delegate { ShowForm(new FrmAuditLog()); };
             miBackup.Click += delegate { ShowForm(new FrmBackupRestore()); };
-            miSettings.Click += delegate { ShowPhaseNotice(2); };
+            miArchive.Click += delegate { ShowForm(new FrmArchive()); };
+            miLoginHistory.Click += delegate { ShowForm(new FrmLoginHistory()); };
+            miSettings.Click += delegate { ShowForm(new FrmSettings()); };
             miLogout.Click += OnLogoutClick;
             miChangePassword.Click += OnChangePasswordClick;
             miExit.Click += delegate { Close(); };
@@ -129,12 +135,6 @@ namespace HR.UI.UI
         {
             form.MdiParent = this;
             form.Show();
-        }
-
-        private static void ShowPhaseNotice(int phaseNumber)
-        {
-            Theme.ShowInfo("هذه الوحدة مُبرمجة للتنفيذ في المرحلة رقم " + phaseNumber +
-                " وفق خطة التنفيذ المعتمدة ولم تُبنَ بعد.");
         }
 
         private void OnLogoutClick(object sender, EventArgs args)
