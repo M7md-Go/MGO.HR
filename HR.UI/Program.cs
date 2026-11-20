@@ -1,7 +1,6 @@
 using System;
 using System.Windows.Forms;
 using HR.BLL;
-using HR.DAL;
 using HR.Helpers;
 using HR.UI.UI;
 
@@ -20,7 +19,7 @@ namespace HR.UI
 
             try
             {
-                DbInitializer.EnsureInitialized();
+                BootstrapBLL.EnsureDatabase();
                 UserBLL.InitializeFirstAdmin();
                 SettingsBLL.Refresh();
             }
