@@ -301,5 +301,24 @@ namespace HR.DAL
                 return Convert.ToInt32(result);
             }
         }
+
+        /// <summary>Active (non-deleted) employees grouped by department name.
+        /// Departments with no employees appear as NULL name and are labeled
+        /// by the caller.</summary>
+        public static List<DepartmentCount> CountByDepartment()
+        {
+            string sql =
+                "SELECT dep.DepartmentName, COUNT(*) " +
+                "FROM (Employees e LEFT JOIN Departments dep ON e.DepartmentId = dep.DepartmentId) " +
+                "WHERE e.IsDeleted = 0 " +
+                "GROUP BY dep.DepartmentName";
+            return Db.ReadList(sql, delegate(OleDbDataReader reader)
+            {
+                DepartmentCount count = new DepartmentCount();
+                count.DepartmentName = reader.IsDBNull(0) ? null : reader.GetString(0);
+                count.EmployeeCount = reader.GetInt32(1);
+                return count;
+            });
+        }
     }
 }

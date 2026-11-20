@@ -71,7 +71,7 @@ namespace HR.UI.UI
             miLeaves.Click += delegate { ShowForm(new FrmLeaves()); };
             miMissions.Click += delegate { ShowForm(new FrmMissions()); };
             miPenalties.Click += delegate { ShowForm(new FrmPenalties()); };
-            miDashboard.Click += delegate { ShowPhaseNotice(11); };
+            miDashboard.Click += delegate { ShowForm(new FrmDashboard()); };
             miReports.Click += delegate { ShowForm(new FrmReports()); };
             miUsers.Click += delegate { ShowForm(new FrmUsers()); };
             miAudit.Click += delegate { ShowForm(new FrmAuditLog()); };
