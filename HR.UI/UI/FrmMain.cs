@@ -48,6 +48,9 @@ namespace HR.UI.UI
             ToolStripMenuItem miMonthly = new ToolStripMenuItem("الجدول الشهري");
             ToolStripMenuItem miAttEngine = new ToolStripMenuItem("محرك الحضور");
             ToolStripMenuItem miFingerprint = new ToolStripMenuItem("البصمة والحضور");
+            ToolStripMenuItem miLeaves = new ToolStripMenuItem("الإجازات");
+            ToolStripMenuItem miMissions = new ToolStripMenuItem("المأموريات");
+            ToolStripMenuItem miPenalties = new ToolStripMenuItem("الجزاءات");
             ToolStripMenuItem miReports = new ToolStripMenuItem("التقارير");
             ToolStripMenuItem miAdmin = new ToolStripMenuItem("الإدارة");
             ToolStripMenuItem miUsers = new ToolStripMenuItem("المستخدمون والصلاحيات");
@@ -63,6 +66,9 @@ namespace HR.UI.UI
             miMonthly.Click += delegate { ShowForm(new FrmMonthlySchedule()); };
             miAttEngine.Click += delegate { ShowForm(new FrmAttendanceCalc()); };
             miFingerprint.Click += delegate { ShowForm(new FrmDevices()); };
+            miLeaves.Click += delegate { ShowForm(new FrmLeaves()); };
+            miMissions.Click += delegate { ShowForm(new FrmMissions()); };
+            miPenalties.Click += delegate { ShowForm(new FrmPenalties()); };
             miDashboard.Click += delegate { ShowPhaseNotice(11); };
             miReports.Click += delegate { ShowPhaseNotice(9); };
             miUsers.Click += delegate { ShowPhaseNotice(10); };
@@ -80,6 +86,10 @@ namespace HR.UI.UI
             miModules.DropDownItems.Add(miMonthly);
             miModules.DropDownItems.Add(miAttEngine);
             miModules.DropDownItems.Add(miFingerprint);
+            miModules.DropDownItems.Add(new ToolStripSeparator());
+            miModules.DropDownItems.Add(miLeaves);
+            miModules.DropDownItems.Add(miMissions);
+            miModules.DropDownItems.Add(miPenalties);
             miModules.DropDownItems.Add(new ToolStripSeparator());
             miModules.DropDownItems.Add(miReports);
             miModules.DropDownItems.Add(miAdmin);
