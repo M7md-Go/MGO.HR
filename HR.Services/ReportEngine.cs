@@ -524,13 +524,13 @@ namespace HR.Services
             return (minutes.Value / 60) + ":" + (minutes.Value % 60).ToString("00");
         }
 
-        private static string OvertimeBllFormat(long minutes)
+        private static string OvertimeBllFormat(long? minutes)
         {
-            if (minutes <= 0)
+            if (minutes == null || minutes <= 0)
             {
                 return "0:00";
             }
-            return (minutes / 60) + ":" + (minutes % 60).ToString("00");
+            return (minutes.Value / 60) + ":" + (minutes.Value % 60).ToString("00");
         }
 
         private static int ParseInt(string value)
