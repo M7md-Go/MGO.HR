@@ -21,7 +21,7 @@ namespace HR.DAL
         public static void EnsureInitialized()
         {
             string databasePath = AppContext.DatabasePath;
-            if (!CoreTablesExist())
+            if (!Db.CoreTablesExist())
             {
                 CreateDatabaseFile(databasePath);
                 ExecuteSchemaScript(databasePath);
