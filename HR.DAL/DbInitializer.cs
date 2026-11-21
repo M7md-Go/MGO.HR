@@ -75,6 +75,27 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                using (OleDbCommand mixPolicyCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Sch.MixPolicy'", connection))
+                {
+                    if (Convert.ToInt32(mixPolicyCount.ExecuteScalar()) == 0)
+                    {
+                        object legacyValue = new OleDbCommand(
+                            "SELECT SettingValue FROM AppSettings WHERE SettingKey = 'Sch.DisableMixingCategories'", connection).ExecuteScalar();
+                        string legacyText = legacyValue == null ? null : Convert.ToString(legacyValue);
+                        bool legacyEnabled = true;
+                        string normalizedLegacy = legacyText == null ? string.Empty : legacyText.Trim().ToUpperInvariant();
+                        if (normalizedLegacy == "NO" || normalizedLegacy == "0" || normalizedLegacy == "FALSE")
+                        {
+                            legacyEnabled = false;
+                        }
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Sch.MixPolicy', '" + (legacyEnabled ? "Both" : "Off") + "', '" +
+                            "سياسة منع خلط ورديات العمل (BR-09): Both = الصنف والمدة معا (افتراضي)، Duration = المدة فقط، Category = الصنف فقط، Off = معطل" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,

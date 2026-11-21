@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using HR.DAL;
 using HR.Entities;
 using HR.Helpers;
@@ -179,7 +180,11 @@ namespace HR.BLL
                 byId[employee.EmployeeId] = employee;
             }
 
-            bool disableMixing = SettingsBLL.GetBool("Sch.DisableMixingCategories", true);
+            string mixPolicy = SettingsBLL.GetString("Sch.MixPolicy", "Both");
+            if (string.IsNullOrWhiteSpace(mixPolicy))
+            {
+                mixPolicy = "Both";
+            }
             int minWeeklyHours = SettingsBLL.GetInt("Sch.MinWeeklyHours", 36);
             int maxWeeklyHours = SettingsBLL.GetInt("Sch.MaxWeeklyHours", 42);
             int maxContinuousHours = SettingsBLL.GetInt("Sch.MaxContinuousHours", 24);
@@ -203,9 +208,9 @@ namespace HR.BLL
                     }
                 }
 
-                if (disableMixing)
+                if (!string.Equals(mixPolicy, "Off", StringComparison.OrdinalIgnoreCase))
                 {
-                    string firstCategory = null;
+                    Shift firstShift = null;
                     int? firstDay = null;
                     foreach (KeyValuePair<int, int> dayPair in days)
                     {
@@ -214,17 +219,17 @@ namespace HR.BLL
                         {
                             continue;
                         }
-                        if (firstCategory == null)
+                        if (firstShift == null)
                         {
-                            firstCategory = shift.CategoryCode;
+                            firstShift = shift;
                             firstDay = dayPair.Key;
                             continue;
                         }
-                        if (!string.Equals(shift.CategoryCode, firstCategory, StringComparison.Ordinal))
+                        if (!MixAllowed(firstShift, shift, mixPolicy))
                         {
-                            throw new BusinessException("يوم " + dayPair.Key + who + ": يمزج أصناف ورديات مختلفة ('" +
-                                (shift.CategoryCode ?? "بدون صنف") + "') مع صنف اليوم " + firstDay +
-                                " — منع خلط الأصناف مفعل (BR-09).");
+                            throw new BusinessException("يوم " + dayPair.Key + who + ": الوردية '" + DescribeShift(shift) +
+                                "' لا يجوز خلطها مع الوردية '" + DescribeShift(firstShift) + "' المختارة في اليوم " + firstDay +
+                                " — منع خلط ورديات العمل المختلفة المدة أو الصنف مفعل (BR-09). يمكن تغيير السياسة من الإعدادات: Sch.MixPolicy.");
                         }
                     }
                 }
@@ -310,6 +315,42 @@ namespace HR.BLL
         {
             return string.Equals(shift.CategoryCode, "Rest", StringComparison.Ordinal) ||
                    string.Equals(shift.ShiftCode, "FR", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>BR-09: decides whether two work shifts may coexist in one employee's
+        /// month under the configured policy (Sch.MixPolicy = Off / Category / Duration / Both).</summary>
+        private static bool MixAllowed(Shift first, Shift other, string policy)
+        {
+            bool sameCategory = string.Equals(first.CategoryCode, other.CategoryCode, StringComparison.Ordinal);
+            bool sameDuration = string.Equals(DurationBucket(first), DurationBucket(other), StringComparison.Ordinal);
+            if (string.Equals(policy, "Category", StringComparison.OrdinalIgnoreCase))
+            {
+                return sameCategory;
+            }
+            if (string.Equals(policy, "Duration", StringComparison.OrdinalIgnoreCase))
+            {
+                return sameDuration;
+            }
+            return sameCategory && sameDuration;
+        }
+
+        /// <summary>Effective shift duration bucket rounded to the nearest half hour —
+        /// makes the 7-hour shift never interchangeable with 6/9/12/24-hour shifts.</summary>
+        private static string DurationBucket(Shift shift)
+        {
+            if (shift.DurationHrs == null)
+            {
+                return "?";
+            }
+            double bucket = Math.Round(shift.DurationHrs.Value * 2.0, MidpointRounding.AwayFromZero) / 2.0;
+            return bucket.ToString("0.#", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>Arabic shift description (code, name, category, duration) used in BR-09 messages.</summary>
+        private static string DescribeShift(Shift shift)
+        {
+            return (shift.ShiftCode ?? "?") + " " + (shift.ShiftName ?? "?") +
+                   " — صنف '" + (shift.CategoryCode ?? "بدون صنف") + "' — مدة " + DurationBucket(shift) + " ساعة";
         }
 
         private static int CountCells(Dictionary<int, Dictionary<int, int>> cells)
