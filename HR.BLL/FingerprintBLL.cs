@@ -252,11 +252,13 @@ namespace HR.BLL
             List<FingerprintLog> incoming = new List<FingerprintLog>();
             int deviceUsers = 0;
             string serialRead = null;
+            int connectMs = 0;
             using (ZkGateway gateway = ZkGateway.Create())
             {
                 Stopwatch pingWatch = Stopwatch.StartNew();
                 ConnectAndVerify(gateway, device);
                 pingWatch.Stop();
+                connectMs = (int)pingWatch.ElapsedMilliseconds;
                 serialRead = gateway.GetSerialNumber(machineNumber);
 
                 List<DeviceUserInfo> usersOnDevice;
@@ -304,7 +306,7 @@ namespace HR.BLL
 
             int elapsedMs = (int)stopwatch.ElapsedMilliseconds;
             summary.DurationMs = elapsedMs;
-            DeviceDAL.UpdateSyncState(deviceId, DateTime.Now, "Downloaded", (int)pingWatch.ElapsedMilliseconds);
+            DeviceDAL.UpdateSyncState(deviceId, DateTime.Now, "Downloaded", connectMs);
             AuditBLL.Log("Fingerprint.Download", "FingerprintLogs", deviceId.ToString(), null,
                 "Device=" + device.DeviceName + ", IP=" + device.IpAddress +
                 ", Total=" + summary.DeviceLogs + ", New=" + summary.NewLogs +
