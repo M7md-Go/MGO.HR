@@ -33,8 +33,9 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path output | Out-Null
+          New-Item -ItemType Directory -Force -Path output\Database | Out-Null
           Copy-Item HR.UI\bin\Release\* output\ -Force
-          Copy-Item Database\ModernTime_Schema.sql output\ -Force
+          Copy-Item Database\ModernTime_Schema.sql output\Database\ -Force
           Compress-Archive -Path output\* -Force -DestinationPath ModernTime.zip
 
       - name: Upload build artifact

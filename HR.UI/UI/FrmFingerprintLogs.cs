@@ -141,9 +141,7 @@ namespace HR.UI.UI
                 Logger.LogError(unexpected, "FrmFingerprintLogs.LoadFilterDefaults");
                 Theme.ShowError("حدث خطأ أثناء تحميل قائمة الأجهزة.");
             }
-            _cboDevice.DataSource = new BindingSource(devices, null);
-            _cboDevice.DisplayMember = "Value";
-            _cboDevice.ValueMember = "Key";
+            Theme.BindDictionary(_cboDevice, devices);
         }
 
         private void Reload()

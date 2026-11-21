@@ -105,8 +105,8 @@ namespace HR.DAL
             entity.StartTime = Text(r, 3);
             entity.EndTime = Text(r, 4);
             entity.CrossDay = r.IsDBNull(5) ? (bool?)null : r.GetBoolean(5);
-            entity.DurationHrs = r.IsDBNull(6) ? (float?)null : Convert.ToSingle(r.GetDouble(6));
-            entity.NormalHours = r.IsDBNull(7) ? (float?)null : Convert.ToSingle(r.GetDouble(7));
+            entity.DurationHrs = r.IsDBNull(6) ? (float?)null : Convert.ToSingle(r.GetValue(6));
+            entity.NormalHours = r.IsDBNull(7) ? (float?)null : Convert.ToSingle(r.GetValue(7));
             entity.BreakMinutes = r.IsDBNull(8) ? (int?)null : r.GetInt32(8);
             entity.CategoryCode = Text(r, 9);
             entity.RequireCheck = r.IsDBNull(10) ? (bool?)null : r.GetBoolean(10);

@@ -177,9 +177,7 @@ namespace HR.UI.UI
                 {
                     names[type.LongLeaveTypeId] = type.TypeName;
                 }
-                _cboType.DataSource = new BindingSource(names, null);
-                _cboType.DisplayMember = "Value";
-                _cboType.ValueMember = "Key";
+                Theme.BindDictionary(_cboType, names);
             }
             catch (Exception unexpected)
             {

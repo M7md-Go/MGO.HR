@@ -162,9 +162,7 @@ namespace HR.UI.UI
                 {
                     _typeNames[type.LeaveTypeId] = type.TypeName + " (" + type.LeaveTypeCode + ")";
                 }
-                _cboType.DataSource = new BindingSource(_typeNames, null);
-                _cboType.DisplayMember = "Value";
-                _cboType.ValueMember = "Key";
+                Theme.BindDictionary(_cboType, _typeNames);
             }
             catch (Exception unexpected)
             {

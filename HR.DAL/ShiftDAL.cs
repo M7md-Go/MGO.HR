@@ -41,8 +41,8 @@ namespace HR.DAL
             shift.StartTime = reader.IsDBNull(3) ? null : reader.GetString(3);
             shift.EndTime = reader.IsDBNull(4) ? null : reader.GetString(4);
             shift.CrossDay = reader.IsDBNull(5) ? (bool?)null : reader.GetBoolean(5);
-            shift.DurationHrs = reader.IsDBNull(6) ? (float?)null : Convert.ToSingle(reader.GetDouble(6));
-            shift.NormalHours = reader.IsDBNull(7) ? (float?)null : Convert.ToSingle(reader.GetDouble(7));
+            shift.DurationHrs = reader.IsDBNull(6) ? (float?)null : Convert.ToSingle(reader.GetValue(6));
+            shift.NormalHours = reader.IsDBNull(7) ? (float?)null : Convert.ToSingle(reader.GetValue(7));
             shift.BreakMinutes = reader.IsDBNull(8) ? (int?)null : reader.GetInt32(8);
             shift.CategoryCode = reader.IsDBNull(9) ? null : reader.GetString(9);
             shift.RequireCheck = reader.IsDBNull(10) ? (bool?)null : reader.GetBoolean(10);

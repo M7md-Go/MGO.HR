@@ -244,11 +244,34 @@ namespace HR.UI.UI
 
             LoadDepartments();
             Reload();
+        }
 
-            _refreshTimer = new Timer();
-            _refreshTimer.Interval = 120000;
-            _refreshTimer.Tick += delegate { Reload(); };
+        /// <summary>
+        /// The refresh timer starts only when the form is actually shown and is
+        /// stopped on close; a form that gets created then disposed by the main
+        /// shell (duplicate module) must never leave a live timer behind.
+        /// </summary>
+        protected override void OnShown(EventArgs args)
+        {
+            base.OnShown(args);
+            if (_refreshTimer == null)
+            {
+                _refreshTimer = new Timer();
+                _refreshTimer.Interval = 120000;
+                _refreshTimer.Tick += delegate { Reload(); };
+            }
             _refreshTimer.Start();
+        }
+
+        protected override void OnFormClosed(FormClosedEventArgs args)
+        {
+            if (_refreshTimer != null)
+            {
+                _refreshTimer.Stop();
+                _refreshTimer.Dispose();
+                _refreshTimer = null;
+            }
+            base.OnFormClosed(args);
         }
 
         private DateTime StartOfWeek(DateTime value)
@@ -308,6 +331,10 @@ namespace HR.UI.UI
         /// <summary>Rebuilds the dashboard payload and repaints every control.</summary>
         private void Reload()
         {
+            if (IsDisposed || _gridDepartments == null || _gridFingerprints == null || _gridDevices == null)
+            {
+                return;
+            }
             try
             {
                 int? departmentId = _cboDepartment.SelectedValue is int ? (int)_cboDepartment.SelectedValue : 0;
@@ -325,6 +352,10 @@ namespace HR.UI.UI
                 _lblMissions.Text = data.ApprovedMissions.ToString();
                 _lblWorked.Text = FormatHm(data.WorkedMinutes);
 
+                if (_gridDepartments.Columns.Count == 0)
+                {
+                    BuildDepartmentColumns();
+                }
                 _gridDepartments.Rows.Clear();
                 foreach (DepartmentStat stat in data.DepartmentStats)
                 {
@@ -336,6 +367,10 @@ namespace HR.UI.UI
                     row.Cells["Absent"].Value = stat.Absent;
                 }
 
+                if (_gridFingerprints.Columns.Count == 0)
+                {
+                    BuildFingerprintColumns();
+                }
                 _gridFingerprints.Rows.Clear();
                 foreach (FingerprintLogView print in data.Fingerprints)
                 {
@@ -349,6 +384,10 @@ namespace HR.UI.UI
                         (print.InOutFlag == 0 ? "دخول" : "");
                 }
 
+                if (_gridDevices.Columns.Count == 0)
+                {
+                    BuildDeviceColumns();
+                }
                 _gridDevices.Rows.Clear();
                 foreach (Device device in data.Devices)
                 {

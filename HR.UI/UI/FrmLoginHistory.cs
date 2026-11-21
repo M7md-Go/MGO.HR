@@ -93,9 +93,7 @@ namespace HR.UI.UI
                     items.Add(user.UserId, user.Username + " - " + user.FullName);
                     _userNames[user.UserId] = user.Username;
                 }
-                _cboUser.DataSource = new BindingSource(items, null);
-                _cboUser.DisplayMember = "Value";
-                _cboUser.ValueMember = "Key";
+                Theme.BindDictionary(_cboUser, items);
             }
             catch (BusinessException expected)
             {

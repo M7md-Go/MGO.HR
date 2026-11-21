@@ -159,9 +159,7 @@ namespace HR.UI.UI
             {
                 departments[row.Id] = row.Name;
             }
-            _cboDepartment.DataSource = new BindingSource(departments, null);
-            _cboDepartment.DisplayMember = "Value";
-            _cboDepartment.ValueMember = "Key";
+            Theme.BindDictionary(_cboDepartment, departments);
         }
 
         private void OnRunClick()

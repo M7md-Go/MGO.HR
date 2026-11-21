@@ -398,13 +398,17 @@ namespace HR.UI.UI
         /// </summary>
         private static void BindCombo(ComboBox combo, Dictionary<int, string> options, bool requireSelection)
         {
+            if (options == null || options.Count == 0)
+            {
+                combo.DataSource = null;
+                combo.SelectedIndex = -1;
+                return;
+            }
             if (!requireSelection && !StartsWithSentinel(options))
             {
                 options = OptionalDictionary(options);
             }
-            combo.DataSource = new BindingSource(options, null);
-            combo.DisplayMember = "Value";
-            combo.ValueMember = "Key";
+            Theme.BindDictionary(combo, options);
             if (requireSelection)
             {
                 combo.SelectedIndex = -1;

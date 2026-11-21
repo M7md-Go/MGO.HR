@@ -286,9 +286,7 @@ namespace HR.UI.UI
                 _departmentNames[department.DepartmentId] = department.DepartmentName;
                 options[department.DepartmentId] = department.DepartmentName;
             }
-            _cboDepartment.DataSource = new BindingSource(options, null);
-            _cboDepartment.DisplayMember = "Value";
-            _cboDepartment.ValueMember = "Key";
+            Theme.BindDictionary(_cboDepartment, options);
             _cboDepartment.SelectedValue = 0;
         }
 

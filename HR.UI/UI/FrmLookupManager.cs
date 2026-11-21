@@ -477,9 +477,7 @@ namespace HR.UI.UI
                     {
                         options.Add(pair.Key, pair.Value);
                     }
-                    _cboParent.DataSource = new BindingSource(options, null);
-                    _cboParent.DisplayMember = "Value";
-                    _cboParent.ValueMember = "Key";
+                    Theme.BindDictionary(_cboParent, options);
                 }
                 else
                 {

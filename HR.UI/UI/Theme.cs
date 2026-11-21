@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -96,6 +97,24 @@ namespace HR.UI.UI
                 MessageBoxIcon.Question, MessageBoxDefaultButton.Button2,
                 MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
             return result == DialogResult.Yes;
+        }
+
+        /// <summary>
+        /// Binds a Key/Value dictionary to a combo. An empty dictionary is left
+        /// unbound: WinForms cannot resolve display/value member names on an
+        /// empty dictionary and throws "Cannot bind to the new display member".
+        /// </summary>
+        public static void BindDictionary(ComboBox combo, Dictionary<int, string> options)
+        {
+            if (options == null || options.Count == 0)
+            {
+                combo.DataSource = null;
+                combo.SelectedIndex = -1;
+                return;
+            }
+            combo.DataSource = new BindingSource(options, null);
+            combo.DisplayMember = "Value";
+            combo.ValueMember = "Key";
         }
     }
 }

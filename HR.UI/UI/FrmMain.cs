@@ -339,6 +339,14 @@ namespace HR.UI.UI
 
         private void OpenModule(string id)
         {
+            foreach (Form child in MdiChildren)
+            {
+                if (Equals(child.Tag, id))
+                {
+                    child.Activate();
+                    return;
+                }
+            }
             Form form;
             switch (id)
             {
@@ -362,6 +370,7 @@ namespace HR.UI.UI
                 case "settings": form = new FrmSettings(); break;
                 default: return;
             }
+            form.Tag = id;
             ShowForm(form);
         }
 
