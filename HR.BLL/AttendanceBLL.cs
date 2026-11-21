@@ -176,6 +176,7 @@ namespace HR.BLL
             rules.OvertimeRate = SettingsBLL.GetDouble("Att.OvertimeRate", 1.5);
             rules.HolidayOvertimeRate = SettingsBLL.GetDouble("Att.HolidayOTRate", 2.0);
             rules.MaxContinuousWorkHours = SettingsBLL.GetDouble("Att.MaxContinuousWorkHours", 24);
+            rules.RestDays = WeekRestDays.Parse(SettingsBLL.GetString(WeekRestDays.SettingKey, WeekRestDays.DefaultDays));
             return rules;
         }
     }

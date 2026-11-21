@@ -25,6 +25,8 @@ namespace HR.Entities
         public double HolidayOvertimeRate { get; set; }
         /// <summary>Att.MaxContinuousWorkHours — a worked span above this raises an exception row.</summary>
         public double MaxContinuousWorkHours { get; set; }
+        /// <summary>Sch.RestDays — configured weekly rest days (BR-03); never empty.</summary>
+        public List<DayOfWeek> RestDays { get; set; }
     }
 
     /// <summary>Everything the engine needs for one recalculation pass (rule 10).</summary>

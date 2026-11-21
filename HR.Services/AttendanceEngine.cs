@@ -11,7 +11,7 @@ namespace HR.Services
     /// snapshot, and produces write-ready Attendance rows, AttendanceException
     /// rows and auto Overtime rows. Day-precedence (rule 36, safest and most
     /// scalable order): exempt Mission &gt; approved Leave &gt; public Holiday
-    /// &gt; weekly rest (FR shift or Friday without a cell) &gt; workday. Punch
+    /// &gt; weekly rest (FR shift, or any Sch.RestDays day without a cell) &gt; workday. Punch
     /// pairing is sequential per employee — every punch is consumed at most
     /// once, so a night-shift exit punch (cross-day shift, rule 13) lands on
     /// the day whose shift it closes and can never be re-paired as a stray
@@ -125,7 +125,7 @@ namespace HR.Services
                     CalculateRestDayWork(input, output, employeeId, date, null, "Holiday", punches, ref punchCursor);
                     return punchCursor;
                 }
-                if (date.DayOfWeek == DayOfWeek.Friday)
+                if (IsWeeklyRest(input.Rules, date))
                 {
                     CalculateRestDayWork(input, output, employeeId, date, null, "WeeklyRest", punches, ref punchCursor);
                     return punchCursor;
@@ -484,6 +484,17 @@ namespace HR.Services
         private static bool IsRestShift(Shift shift)
         {
             return string.Equals(shift.ShiftCode, "FR", StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>BR-03 rest day: from Sch.RestDays via EngineRules (fallback Friday-only).</summary>
+        private static bool IsWeeklyRest(EngineRules rules, DateTime date)
+        {
+            List<DayOfWeek> restDays = rules.RestDays;
+            if (restDays == null || restDays.Count == 0)
+            {
+                restDays = WeekRestDays.Parse(null);
+            }
+            return restDays.Contains(date.DayOfWeek);
         }
 
         private static TimeSpan WorkSpan(TimeSpan start, TimeSpan end, bool crossDay)

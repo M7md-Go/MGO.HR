@@ -627,6 +627,8 @@ VALUES ('Sch.OTRequiresApprove', 'YES', 'الساعات الإضافية تتط�
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sch.DisableMixingCategories','YES', 'منع خلط أصناف الورديات في جدول الموظف', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
+VALUES ('Sch.RestDays','Friday','أيام الراحة الأسبوعية مفصولة بفواصل — أسماء عربية أو إنجليزية أو أرقام 0-6 (0 = الأحد). مثال: Friday أو Friday,Saturday', Now());
+INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sch.MixPolicy','Both','سياسة منع خلط ورديات العمل (BR-09): Both = الصنف والمدة معا (افتراضي)، Duration = المدة فقط، Category = الصنف فقط، Off = معطل', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sec.MaxFailedLogins', '5', 'أقصى محاولات دخول فاشلة', Now());

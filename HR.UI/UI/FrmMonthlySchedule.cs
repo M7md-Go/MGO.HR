@@ -46,6 +46,7 @@ namespace HR.UI.UI
         private DataGridView _grid;
 
         private MonthData _data;
+        private List<DayOfWeek> _restDays;
         private Dictionary<int, Dictionary<int, int>> _cells;
         private Dictionary<int, Dictionary<int, int>> _snapshot;
         private Dictionary<int, int> _rowClipboard;
@@ -366,6 +367,7 @@ namespace HR.UI.UI
         private void LoadMonthData(int year, int month, int? departmentId, int? sectionId)
         {
             _data = ScheduleBLL.LoadMonth(year, month, departmentId, sectionId);
+            _restDays = WeekRestDays.Parse(SettingsBLL.GetString(WeekRestDays.SettingKey, WeekRestDays.DefaultDays));
             _cells = Clone(_data.Cells);
             _snapshot = Clone(_cells);
             _rowClipboard = null;
@@ -460,7 +462,7 @@ namespace HR.UI.UI
                     dayColumn.Width = 52;
                     dayColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
                     dayColumn.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
-                    if (new DateTime(_data.Year, _data.Month, day).DayOfWeek == DayOfWeek.Friday)
+                    if (_restDays != null && _restDays.Contains(new DateTime(_data.Year, _data.Month, day).DayOfWeek))
                     {
                         dayColumn.HeaderCell.Style.BackColor = Theme.StatusWarn;
                     }
@@ -633,7 +635,7 @@ namespace HR.UI.UI
             return copy;
         }
 
-        /// <summary>Saturday to Friday labels (rule 8-3: week starts Saturday).</summary>
+        /// <summary>Arabic weekday labels for the column headers.</summary>
         private static string WeekdayAr(DayOfWeek dayOfWeek)
         {
             switch (dayOfWeek)
@@ -655,11 +657,16 @@ namespace HR.UI.UI
             }
         }
 
-        /// <summary>Day number of the Saturday starting the week containing the given day.</summary>
+        /// <summary>Day number starting the operational week (Sch.RestDays-derived anchor)
+        /// that contains the given day.</summary>
         private int WeekStartDay(int day)
         {
             DateTime date = new DateTime(_data.Year, _data.Month, day);
-            int offset = ((int)date.DayOfWeek + 1) % 7;
+            List<DayOfWeek> restDays = _restDays != null && _restDays.Count > 0
+                ? _restDays
+                : WeekRestDays.Parse(null);
+            int anchor = (int)WeekRestDays.WeekStartAfterRest(restDays);
+            int offset = ((int)date.DayOfWeek - anchor + 7) % 7;
             return day - offset;
         }
 
@@ -694,7 +701,7 @@ namespace HR.UI.UI
             }
         }
 
-        /// <summary>Autofill: default shift every day, Friday rest when a rest shift exists.</summary>
+        /// <summary>Autofill: default shift every day, configured Sch.RestDays rest shift.</summary>
         private void OnFillClick()
         {
             try
@@ -718,7 +725,7 @@ namespace HR.UI.UI
                 int daysInMonth = DateTime.DaysInMonth(_data.Year, _data.Month);
                 for (int day = 1; day <= daysInMonth; day++)
                 {
-                    if (new DateTime(_data.Year, _data.Month, day).DayOfWeek == DayOfWeek.Friday && restShiftId != null)
+                    if ((_restDays == null || _restDays.Contains(new DateTime(_data.Year, _data.Month, day).DayOfWeek)) && restShiftId != null)
                     {
                         days[day] = restShiftId.Value;
                     }

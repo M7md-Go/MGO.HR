@@ -96,6 +96,18 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                using (OleDbCommand restDaysCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Sch.RestDays'", connection))
+                {
+                    if (Convert.ToInt32(restDaysCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Sch.RestDays', 'Friday', '" +
+                            "أيام الراحة الأسبوعية مفصولة بفواصل — أسماء عربية أو إنجليزية أو أرقام 0-6 (0 = الأحد). مثال: Friday أو Friday,Saturday" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,

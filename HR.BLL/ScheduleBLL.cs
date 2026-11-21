@@ -185,6 +185,8 @@ namespace HR.BLL
             {
                 mixPolicy = "Both";
             }
+            List<DayOfWeek> restDays = WeekRestDays.Parse(SettingsBLL.GetString(WeekRestDays.SettingKey, WeekRestDays.DefaultDays));
+            DayOfWeek weekAnchor = WeekRestDays.WeekStartAfterRest(restDays);
             int minWeeklyHours = SettingsBLL.GetInt("Sch.MinWeeklyHours", 36);
             int maxWeeklyHours = SettingsBLL.GetInt("Sch.MaxWeeklyHours", 42);
             int maxContinuousHours = SettingsBLL.GetInt("Sch.MaxContinuousHours", 24);
@@ -275,7 +277,7 @@ namespace HR.BLL
                 for (int day = 1; day <= daysInMonth; day++)
                 {
                     DateTime weekStart = new DateTime(year, month, day);
-                    if (weekStart.DayOfWeek != DayOfWeek.Saturday || day + 6 > daysInMonth)
+                    if (weekStart.DayOfWeek != weekAnchor || day + 6 > daysInMonth)
                     {
                         continue;
                     }
