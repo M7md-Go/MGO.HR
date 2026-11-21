@@ -51,6 +51,13 @@ namespace HR.DAL
             }
         }
 
+        /// <summary>Inserts a brand-new setting key (create flow); cache is refreshed by the caller.</summary>
+        public static void Insert(string key, string value, string description)
+        {
+            string sql = "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) VALUES (?, ?, ?, ?)";
+            Db.ExecuteNonQuery(sql, Db.P(key), Db.P(value), Db.P(description), Db.PDateRequired(DateTime.Now));
+        }
+
         /// <summary>Updates one setting and refreshes the cache immediately.</summary>
         public static void Set(string key, string value)
         {

@@ -82,6 +82,46 @@ namespace HR.BLL
             return SettingsDAL.GetSettings();
         }
 
+        /// <summary>
+        /// Creates a brand-new setting key (rule 36: extensibility without rebuild).
+        /// Validates key/value/description lengths against the AppSettings schema
+        /// (50/200/200), rejects duplicates and writes an audit entry.
+        /// </summary>
+        public static void Create(string key, string value, string description)
+        {
+            AppContext.RequirePermission("Settings.Manage");
+            string normalizedKey = (key ?? string.Empty).Trim();
+            if (normalizedKey.Length == 0)
+            {
+                throw new BusinessException("مفتاح الإعداد مطلوب.");
+            }
+            if (normalizedKey.Length > 50)
+            {
+                throw new BusinessException("مفتاح الإعداد يجب ألا يتجاوز 50 حرفًا.");
+            }
+            string normalizedValue = (value ?? string.Empty).Trim();
+            if (normalizedValue.Length == 0)
+            {
+                throw new BusinessException("قيمة الإعداد مطلوبة.");
+            }
+            if (normalizedValue.Length > 200)
+            {
+                throw new BusinessException("قيمة الإعداد يجب ألا تتجاوز 200 حرف.");
+            }
+            string normalizedDesc = (description ?? string.Empty).Trim();
+            if (normalizedDesc.Length > 200)
+            {
+                throw new BusinessException("وصف الإعداد يجب ألا يتجاوز 200 حرف.");
+            }
+            if (GetString(normalizedKey, null) != null)
+            {
+                throw new BusinessException("مفتاح الإعداد '" + normalizedKey + "' موجود مسبقًا — استخدم التعديل بدلاً من الإضافة.");
+            }
+            SettingsDAL.Insert(normalizedKey, normalizedValue, normalizedDesc);
+            Refresh();
+            AuditBLL.Log("Settings.Create", "AppSettings", normalizedKey, null, normalizedValue);
+        }
+
         /// <summary>Saves a setting (permission "Settings.Manage") with an audit entry.</summary>
         public static void Save(string key, string value)
         {

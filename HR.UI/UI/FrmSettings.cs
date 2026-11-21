@@ -20,6 +20,7 @@ namespace HR.UI.UI
         private DataGridView _grid;
         private Dictionary<string, string> _originalValues;
         private Button _btnSave;
+        private Button _btnAdd;
 
         public FrmSettings()
         {
@@ -53,8 +54,15 @@ namespace HR.UI.UI
             _btnSave.Click += delegate { OnSaveClick(); };
             toolbar.Controls.Add(_btnSave);
 
+            _btnAdd = new Button();
+            _btnAdd.Text = "إضافة إعداد";
+            _btnAdd.Height = 30;
+            _btnAdd.Click += delegate { OnAddClick(); };
+            toolbar.Controls.Add(_btnAdd);
+
             _grid = new DataGridView();
             Theme.StyleGrid(_grid);
+            _grid.ReadOnly = false;
             _grid.Dock = DockStyle.Fill;
             _grid.AllowUserToAddRows = false;
             _grid.AllowUserToDeleteRows = false;
@@ -93,6 +101,7 @@ namespace HR.UI.UI
             Controls.Add(header);
 
             _btnSave.Enabled = AppContext.HasPermission("Settings.Manage");
+            _btnAdd.Enabled = _btnSave.Enabled;
             Reload();
         }
 
@@ -126,6 +135,32 @@ namespace HR.UI.UI
             }
         }
 
+        private void OnAddClick()
+        {
+            try
+            {
+                using (FrmSettingEdit dialog = new FrmSettingEdit())
+                {
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+                    SettingsBLL.Create(dialog.SettingKey, dialog.SettingValue, dialog.SettingDesc);
+                }
+                Theme.ShowInfo("تمت إضافة الإعداد الجديد وتسجيل العملية.");
+                Reload();
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmSettings.OnAddClick");
+                Theme.ShowError("حدث خطأ أثناء إضافة الإعداد.");
+            }
+        }
+
         private void OnSaveClick()
         {
             try
@@ -140,6 +175,14 @@ namespace HR.UI.UI
                         continue;
                     }
                     string newValue = row.Cells["SettingValue"].Value as string ?? string.Empty;
+                    if (newValue.Trim().Length == 0)
+                    {
+                        throw new BusinessException("قيمة الإعداد '" + key + "' مطلوبة ولا يمكن تركها فارغة.");
+                    }
+                    if (newValue.Length > 200)
+                    {
+                        throw new BusinessException("قيمة الإعداد '" + key + "' تتجاوز 200 حرف.");
+                    }
                     string oldValue;
                     if (!_originalValues.TryGetValue(key, out oldValue) ||
                         string.Equals(oldValue, newValue, StringComparison.Ordinal))
