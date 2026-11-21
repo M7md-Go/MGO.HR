@@ -39,7 +39,7 @@ namespace HR.UI.UI
 
         public FrmDashboard()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI child: mirrored layout is not applied — RTL flow comes from the containers
             Text = "لوحة التحكم";
             ClientSize = new Size(1150, 740);
             StartPosition = FormStartPosition.CenterParent;
@@ -59,7 +59,9 @@ namespace HR.UI.UI
             toolbar.Dock = DockStyle.Top;
             toolbar.Height = 52;
             toolbar.BackColor = Theme.ToolbarColor;
-            toolbar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            toolbar.FlowDirection = FlowDirection.LeftToRight;
             toolbar.WrapContents = true;
             toolbar.Padding = new Padding(6, 8, 6, 4);
 

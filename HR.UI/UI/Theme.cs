@@ -41,11 +41,22 @@ namespace HR.UI.UI
             return new Font("Segoe UI", size, FontStyle.Regular);
         }
 
-        /// <summary>Applies RTL + Arabic font to a form and all its controls.</summary>
+        /// <summary>Applies RTL + Arabic font to a TOP-LEVEL dialog form, where Windows
+        /// full-layout mirroring (RightToLeftLayout) works correctly.</summary>
         public static void Apply(Form form)
         {
+            Apply(form, true);
+        }
+
+        /// <summary>mirrored=false is required for the MDI shell and MDI children:
+        /// Windows does not apply mirrored layout (WS_EX_LAYOUTRTL) to MDI parent or
+        /// child windows, and owner-drawn chrome is undefined under mirroring. Those
+        /// screens get right-to-left flow from their containers instead (see the
+        /// FlowLayoutPanel note: RTL=Yes already reverses FlowLayoutPanel flow).</summary>
+        public static void Apply(Form form, bool mirrored)
+        {
             form.RightToLeft = RightToLeft.Yes;
-            form.RightToLeftLayout = true;
+            form.RightToLeftLayout = mirrored;
             form.Font = Font(9.75f);
             form.Icon = null;
         }

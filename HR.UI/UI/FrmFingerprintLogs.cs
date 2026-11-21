@@ -28,7 +28,7 @@ namespace HR.UI.UI
 
         public FrmFingerprintLogs()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI child: mirrored layout is not applied — RTL flow comes from the containers
             Text = "سجلات البصمة الخام";
             ClientSize = new Size(1050, 600);
             StartPosition = FormStartPosition.CenterParent;
@@ -48,7 +48,9 @@ namespace HR.UI.UI
             filterBar.Dock = DockStyle.Top;
             filterBar.Height = 46;
             filterBar.BackColor = Theme.ToolbarColor;
-            filterBar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            filterBar.FlowDirection = FlowDirection.LeftToRight;
             filterBar.WrapContents = false;
             filterBar.Padding = new Padding(6, 8, 6, 4);
 

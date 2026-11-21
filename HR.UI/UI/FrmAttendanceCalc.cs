@@ -28,7 +28,7 @@ namespace HR.UI.UI
 
         public FrmAttendanceCalc()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI child: mirrored layout is not applied — RTL flow comes from the containers
             Text = "محرك الحضور";
             ClientSize = new Size(1050, 620);
             StartPosition = FormStartPosition.CenterParent;
@@ -48,7 +48,9 @@ namespace HR.UI.UI
             runBar.Dock = DockStyle.Top;
             runBar.Height = 46;
             runBar.BackColor = Theme.ToolbarColor;
-            runBar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            runBar.FlowDirection = FlowDirection.LeftToRight;
             runBar.WrapContents = false;
             runBar.Padding = new Padding(6, 8, 6, 4);
 
@@ -95,7 +97,9 @@ namespace HR.UI.UI
             browseBar.Dock = DockStyle.Top;
             browseBar.Height = 46;
             browseBar.BackColor = Theme.ToolbarColor;
-            browseBar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            browseBar.FlowDirection = FlowDirection.LeftToRight;
             browseBar.WrapContents = false;
             browseBar.Padding = new Padding(6, 4, 6, 4);
 

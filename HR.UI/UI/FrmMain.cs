@@ -21,7 +21,7 @@ namespace HR.UI.UI
 
         public FrmMain()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI parent: Windows ignores mirrored layout here — explicit RTL containers used instead
             Text = Theme.AppTitle;
             IsMdiContainer = true;
             StartPosition = FormStartPosition.CenterScreen;
@@ -84,7 +84,7 @@ namespace HR.UI.UI
         private void BuildNav()
         {
             Panel nav = new Panel();
-            nav.Dock = DockStyle.Left;
+            nav.Dock = DockStyle.Right; // RTL shell: navigation panel on the visual right
             nav.Width = 178;
             nav.BackColor = Color.FromArgb(225, 231, 240);
 

@@ -27,7 +27,7 @@ namespace HR.UI.UI
 
         public FrmBackupRestore()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI child: mirrored layout is not applied — RTL flow comes from the containers
             Text = "النسخ الاحتياطي والاستعادة";
             ClientSize = new Size(980, 660);
             StartPosition = FormStartPosition.CenterParent;
@@ -47,7 +47,9 @@ namespace HR.UI.UI
             backupBar.Dock = DockStyle.Top;
             backupBar.Height = 52;
             backupBar.BackColor = Theme.ToolbarColor;
-            backupBar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            backupBar.FlowDirection = FlowDirection.LeftToRight;
             backupBar.WrapContents = false;
             backupBar.Padding = new Padding(6, 8, 6, 4);
 

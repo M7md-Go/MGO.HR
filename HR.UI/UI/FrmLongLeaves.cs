@@ -34,7 +34,7 @@ namespace HR.UI.UI
 
         public FrmLongLeaves()
         {
-            Theme.Apply(this);
+            Theme.Apply(this, false); // MDI child: mirrored layout is not applied — RTL flow comes from the containers
             Text = "الإجازات طويلة المدة";
             ClientSize = new Size(1050, 600);
             StartPosition = FormStartPosition.CenterParent;
@@ -54,7 +54,9 @@ namespace HR.UI.UI
             toolbar.Dock = DockStyle.Top;
             toolbar.Height = 88;
             toolbar.BackColor = Theme.ToolbarColor;
-            toolbar.FlowDirection = FlowDirection.RightToLeft;
+            // FlowLayoutPanel: RTL=Yes (inherited from the form) already reverses the flow;
+            // an explicit RightToLeft cancelled that reversal and rendered the bar left-to-right.
+            toolbar.FlowDirection = FlowDirection.LeftToRight;
             toolbar.WrapContents = true;
             toolbar.Padding = new Padding(6, 8, 6, 4);
 
