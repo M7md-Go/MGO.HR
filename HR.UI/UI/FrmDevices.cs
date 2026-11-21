@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.Windows.Forms;
 using HR.BLL;
@@ -25,6 +26,7 @@ namespace HR.UI.UI
         private Button _btnTest;
         private Button _btnUsers;
         private Button _btnDownload;
+        private Button _btnDownloadAll;
         private Button _btnLogs;
         private DataGridView _grid;
         private List<Device> _rows;
@@ -101,6 +103,11 @@ namespace HR.UI.UI
             _btnDownload.Height = 30;
             _btnDownload.Click += delegate { OnDownloadClick(); };
 
+            _btnDownloadAll = new Button();
+            _btnDownloadAll.Text = "تنزيل الكل";
+            _btnDownloadAll.Height = 30;
+            _btnDownloadAll.Click += delegate { OnDownloadAllClick(); };
+
             _btnLogs = new Button();
             _btnLogs.Text = "عرض السجلات الخام";
             _btnLogs.Height = 30;
@@ -115,6 +122,7 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_btnTest);
             toolbar.Controls.Add(_btnUsers);
             toolbar.Controls.Add(_btnDownload);
+            toolbar.Controls.Add(_btnDownloadAll);
             toolbar.Controls.Add(_btnLogs);
 
             _grid = new DataGridView();
@@ -133,16 +141,28 @@ namespace HR.UI.UI
             Reload();
         }
 
+        private bool _canManage;
+
         private void ApplyPermissionButtons()
         {
-            bool canManage = AppContext.HasPermission("Devices.Manage");
-            _btnAdd.Enabled = canManage;
-            _btnEdit.Enabled = canManage;
-            _btnToggle.Enabled = canManage;
-            _btnDelete.Enabled = canManage;
-            _btnTest.Enabled = canManage;
-            _btnUsers.Enabled = canManage;
-            _btnDownload.Enabled = canManage;
+            _canManage = AppContext.HasPermission("Devices.Manage");
+            _btnAdd.Enabled = _canManage;
+            _btnEdit.Enabled = _canManage;
+            _btnToggle.Enabled = _canManage;
+            _btnDelete.Enabled = _canManage;
+            _btnTest.Enabled = _canManage;
+            _btnUsers.Enabled = _canManage;
+            _btnDownload.Enabled = _canManage;
+            _btnDownloadAll.Enabled = _canManage;
+        }
+
+        /// <summary>Download buttons travel together and lock during any device session.</summary>
+        private void SetDownloadsEnabled(bool downloading)
+        {
+            bool allow = !downloading && _canManage;
+            _btnDownload.Enabled = allow;
+            _btnDownloadAll.Enabled = allow;
+            UseWaitCursor = downloading;
         }
 
         private Device SelectedDevice()
@@ -392,30 +412,19 @@ namespace HR.UI.UI
                     return;
                 }
                 if (!Theme.Confirm("تنزيل سجلات البصمة من الجهاز '" + device.DeviceName +
-                    "'؟ لا تُفقد السجلات المكررة والتكرارات تُتخطى تلقائيًا. قد تستغرق العملية عدة دقائق."))
+                    "'؟ لا تُفقد السجلات والتكرارات تُتخطى تلقائيًا. قد تستغرق العملية عدة دقائق."))
                 {
                     return;
                 }
-                UseWaitCursor = true;
-                DownloadSummary summary;
-                try
+                StartBackgroundDownload(delegate()
                 {
-                    summary = FingerprintBLL.DownloadLogs(device.DeviceId);
-                }
-                finally
-                {
-                    UseWaitCursor = false;
-                }
-                Theme.ShowInfo(
-                    "تم تنزيل سجلات '" + device.DeviceName + "':\n" +
-                    "— سجلات وردت من الجهاز: " + summary.DeviceLogs + "\n" +
-                    "— سجلات جديدة محفوظة: " + summary.NewLogs + "\n" +
-                    "— سجلات مكررة (سُلّمت سابقًا): " + summary.DuplicateLogs + "\n" +
-                    "— سجلات بأكواد دون موظف مطابق: " + summary.UnmappedLogs + "\n" +
-                    "— مستخدمو الجهاز: " + summary.DeviceUsers + "\n" +
-                    "— آخر سجل: " + (summary.LastLogTime == null ? "-" : summary.LastLogTime.Value.ToString("yyyy-MM-dd HH:mm:ss")) +
-                    "\n— المدة: " + summary.DurationMs + " ms");
-                Reload();
+                    List<DeviceDownloadResult> results = new List<DeviceDownloadResult>();
+                    DeviceDownloadResult result = new DeviceDownloadResult();
+                    result.Device = DeviceBLL.GetById(device.DeviceId);
+                    result.Summary = FingerprintBLL.DownloadLogs(device.DeviceId);
+                    results.Add(result);
+                    return results;
+                });
             }
             catch (BusinessException expected)
             {
@@ -426,6 +435,102 @@ namespace HR.UI.UI
                 Logger.LogError(unexpected, "FrmDevices.OnDownloadClick");
                 Theme.ShowError("حدث خطأ أثناء تنزيل سجلات البصمة.");
             }
+        }
+
+        private void OnDownloadAllClick()
+        {
+            try
+            {
+                if (!Theme.Confirm("تنزيل سجلات البصمة من كل الأجهزة النشطة؟ جهاز لا يستجيب لن يوقف البقية وستظهر نتيجة كل جهاز على حدة. قد تستغرق العملية عدة دقائق."))
+                {
+                    return;
+                }
+                StartBackgroundDownload(delegate()
+                {
+                    return FingerprintBLL.DownloadAllActive();
+                });
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmDevices.OnDownloadAllClick");
+                Theme.ShowError("حدث خطأ أثناء بدء التنزيل الجماعي.");
+            }
+        }
+
+        /// <summary>
+        /// Runs the device session on a worker thread so the window stays responsive;
+        /// the result summary is marshaled back to the UI thread when finished.
+        /// </summary>
+        private void StartBackgroundDownload(Func<List<DeviceDownloadResult>> work)
+        {
+            SetDownloadsEnabled(false);
+            BackgroundWorker worker = new BackgroundWorker();
+            worker.DoWork += delegate(object sender, DoWorkEventArgs args)
+            {
+                args.Result = work();
+            };
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args)
+            {
+                SetDownloadsEnabled(true);
+                try
+                {
+                    if (args.Error != null)
+                    {
+                        if (args.Error is BusinessException)
+                        {
+                            Theme.ShowError(args.Error.Message);
+                            return;
+                        }
+                        Logger.LogError(args.Error, "FrmDevices.BackgroundDownload");
+                        Theme.ShowError("حدث خطأ أثناء تنزيل سجلات البصمة.");
+                        return;
+                    }
+                    Reload();
+                    Theme.ShowInfo(BuildDownloadReport(args.Result as List<DeviceDownloadResult>));
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FrmDevices.BackgroundDownloadCompleted");
+                    Theme.ShowError("حدث خطأ أثناء عرض نتيجة التنزيل.");
+                }
+            };
+            worker.RunWorkerAsync();
+        }
+
+        /// <summary>Builds the per-device counters report shown after a session.</summary>
+        private string BuildDownloadReport(List<DeviceDownloadResult> results)
+        {
+            if (results == null || results.Count == 0)
+            {
+                return "لا يوجد أجهزة نشطة لتنزيل سجلاتها.";
+            }
+            List<string> lines = new List<string>();
+            int ok = 0;
+            int failed = 0;
+            foreach (DeviceDownloadResult result in results)
+            {
+                if (result.Success)
+                {
+                    ok++;
+                    lines.Add("✔ '" + result.Device.DeviceName + "' — سجلات الجهاز: " + result.Summary.DeviceLogs +
+                        ", جديد: " + result.Summary.NewLogs +
+                        ", مكرر: " + result.Summary.DuplicateLogs +
+                        ", بلا موظف مطابق: " + result.Summary.UnmappedLogs +
+                        ", مستخدمو الجهاز: " + result.Summary.DeviceUsers +
+                        ", المدة: " + result.Summary.DurationMs + " ms");
+                }
+                else
+                {
+                    failed++;
+                    lines.Add("✖ '" + result.Device.DeviceName + "' — فشل: " + result.ErrorMessage);
+                }
+            }
+            lines.Insert(0, "نتيجة التنزيل — أجهزة ناجحة: " + ok + ", متعثرة: " + failed);
+            return string.Join("\n", lines.ToArray());
         }
 
         private void OnLogsClick()

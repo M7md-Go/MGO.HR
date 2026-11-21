@@ -63,6 +63,18 @@ namespace HR.DAL
                     ExecuteUpgrade(connection,
                         "INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes) VALUES ('IncomeImprove', 'تحسين الدخل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم')");
                 }
+                using (OleDbCommand settingCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Fp.AutoDownloadMinutes'", connection))
+                {
+                    if (Convert.ToInt32(settingCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Fp.AutoDownloadMinutes', '0', '" +
+                            "فترة التنزيل التلقائي لأجهزة البصمة بالدقائق (0 = معطل)" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,

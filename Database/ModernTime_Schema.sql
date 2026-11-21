@@ -642,6 +642,8 @@ INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Integration.ZKTeco.TimeoutSec', '15', 'مهلة اتصال أجهزة البصمة (ثانية)', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Fp.MachineNumber', '1', 'رقم جهاز MachineNumber الافتراضي للاتصال', Now());
+INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
+VALUES ('Fp.AutoDownloadMinutes', '0', 'فترة التنزيل التلقائي لأجهزة البصمة بالدقائق (0 = معطل)', Now());
 
 CREATE TABLE LongLeaveTypes (
 LongLeaveTypeId   AUTOINCREMENT PRIMARY KEY,

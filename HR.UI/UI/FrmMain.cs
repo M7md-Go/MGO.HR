@@ -38,7 +38,7 @@ namespace HR.UI.UI
 
             _backupTimer = new Timer();
             _backupTimer.Interval = 60000;
-            _backupTimer.Tick += delegate { BackupBLL.RunAutoBackupIfDue(); };
+            _backupTimer.Tick += delegate { BackupBLL.RunAutoBackupIfDue(); FingerprintBLL.RunAutoDownloadIfDue(); };
             _backupTimer.Start();
         }
 

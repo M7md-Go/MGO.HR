@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading;
 using HR.DAL;
 using HR.Entities;
 using HR.Helpers;
@@ -34,6 +35,22 @@ namespace HR.BLL
 
         /// <summary>Serial number read from the device during this session.</summary>
         public string SerialNumber { get; set; }
+    }
+
+    /// <summary>Per-device download outcome for the download-all / auto-download loops.</summary>
+    public class DeviceDownloadResult
+    {
+        public Device Device { get; set; }
+
+        public DownloadSummary Summary { get; set; }
+
+        /// <summary>Arabic failure reason, null when the download succeeded.</summary>
+        public string ErrorMessage { get; set; }
+
+        public bool Success
+        {
+            get { return ErrorMessage == null && Summary != null; }
+        }
     }
 
     /// <summary>
@@ -71,10 +88,154 @@ namespace HR.BLL
             return serial;
         }
 
+        /// <summary>0 = free, 1 = a device download session is running (manual or automatic).</summary>
+        private static int _downloadsBusy;
+
+        private static DateTime _nextAutoRun = DateTime.MinValue;
+
         /// <summary>Downloads and stores the device logs; returns exact counters for the UI.</summary>
         public static DownloadSummary DownloadLogs(int deviceId)
         {
             AppContext.RequirePermission("Devices.Manage");
+            AcquireDownloadSlot();
+            try
+            {
+                return DownloadLogsCore(deviceId);
+            }
+            finally
+            {
+                _downloadsBusy = 0;
+            }
+        }
+
+        /// <summary>
+        /// Sequentially downloads every active device; one failing device never
+        /// stops the loop (its result carries the error instead). Shares the same
+        /// single-session guard as the single-device download.
+        /// </summary>
+        public static List<DeviceDownloadResult> DownloadAllActive()
+        {
+            AppContext.RequirePermission("Devices.Manage");
+            AcquireDownloadSlot();
+            try
+            {
+                List<DeviceDownloadResult> results = new List<DeviceDownloadResult>();
+                foreach (Device device in DeviceBLL.GetAll(false))
+                {
+                    if (device.IsActive == false)
+                    {
+                        continue;
+                    }
+                    results.Add(DownloadOneSafe(device));
+                }
+                return results;
+            }
+            finally
+            {
+                _downloadsBusy = 0;
+            }
+        }
+
+        /// <summary>
+        /// Scheduled pull controlled by the setting Fp.AutoDownloadMinutes
+        /// (0 = disabled). Runs only while a user is logged in, never opens
+        /// dialogs, tolerates a busy slot silently (next cycle catches up) and
+        /// audits one aggregate entry per cycle that touched devices.
+        /// </summary>
+        public static void RunAutoDownloadIfDue()
+        {
+            try
+            {
+                if (AppContext.CurrentUser == null)
+                {
+                    return;
+                }
+                int minutes = SettingsBLL.GetInt("Fp.AutoDownloadMinutes", 0);
+                if (minutes <= 0)
+                {
+                    return;
+                }
+                if (DateTime.Now < _nextAutoRun)
+                {
+                    return;
+                }
+                if (Interlocked.CompareExchange(ref _downloadsBusy, 1, 0) != 0)
+                {
+                    return;
+                }
+                try
+                {
+                    _nextAutoRun = DateTime.Now.AddMinutes(minutes);
+                    int downloadedDevices = 0;
+                    int totalNew = 0;
+                    List<string> problems = new List<string>();
+                    foreach (Device device in DeviceBLL.GetAll(false))
+                    {
+                        if (device.IsActive == false)
+                        {
+                            continue;
+                        }
+                        DeviceDownloadResult result = DownloadOneSafe(device);
+                        if (result.Success)
+                        {
+                            downloadedDevices++;
+                            totalNew += result.Summary.NewLogs;
+                        }
+                        else
+                        {
+                            problems.Add(device.DeviceName + ": " + result.ErrorMessage);
+                        }
+                    }
+                    if (downloadedDevices > 0 || problems.Count > 0)
+                    {
+                        AuditBLL.Log("Fingerprint.AutoDownload", "FingerprintLogs", null, null,
+                            "Devices=" + downloadedDevices + ", NewRows=" + totalNew +
+                            (problems.Count == 0 ? "" : ", Problems=" + string.Join("; ", problems.ToArray())));
+                    }
+                }
+                finally
+                {
+                    _downloadsBusy = 0;
+                }
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FingerprintBLL.RunAutoDownloadIfDue");
+            }
+        }
+
+        /// <summary>Single global slot so manual and automatic downloads never collide.</summary>
+        private static void AcquireDownloadSlot()
+        {
+            if (Interlocked.CompareExchange(ref _downloadsBusy, 1, 0) != 0)
+            {
+                throw new BusinessException("هناك عملية تنزيل بصمات جارية حاليًا — انتظر انتهاءها ثم أعد المحاولة.");
+            }
+        }
+
+        /// <summary>One device inside a loop: errors become results, never bubbles.</summary>
+        private static DeviceDownloadResult DownloadOneSafe(Device device)
+        {
+            DeviceDownloadResult result = new DeviceDownloadResult();
+            result.Device = device;
+            try
+            {
+                result.Summary = DownloadLogsCore(device.DeviceId);
+            }
+            catch (BusinessException expected)
+            {
+                result.ErrorMessage = expected.Message;
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FingerprintBLL.DownloadOneSafe");
+                result.ErrorMessage = "حدث خطأ غير متوقع — راجع السجلات.";
+            }
+            return result;
+        }
+
+        private static DownloadSummary DownloadLogsCore(int deviceId)
+        {
             Device device = DeviceDAL.GetById(deviceId);
             if (device == null)
             {
@@ -93,7 +254,9 @@ namespace HR.BLL
             string serialRead = null;
             using (ZkGateway gateway = ZkGateway.Create())
             {
+                Stopwatch pingWatch = Stopwatch.StartNew();
                 ConnectAndVerify(gateway, device);
+                pingWatch.Stop();
                 serialRead = gateway.GetSerialNumber(machineNumber);
 
                 List<DeviceUserInfo> usersOnDevice;
@@ -141,7 +304,7 @@ namespace HR.BLL
 
             int elapsedMs = (int)stopwatch.ElapsedMilliseconds;
             summary.DurationMs = elapsedMs;
-            DeviceDAL.UpdateSyncState(deviceId, DateTime.Now, "Downloaded", elapsedMs);
+            DeviceDAL.UpdateSyncState(deviceId, DateTime.Now, "Downloaded", (int)pingWatch.ElapsedMilliseconds);
             AuditBLL.Log("Fingerprint.Download", "FingerprintLogs", deviceId.ToString(), null,
                 "Device=" + device.DeviceName + ", IP=" + device.IpAddress +
                 ", Total=" + summary.DeviceLogs + ", New=" + summary.NewLogs +
