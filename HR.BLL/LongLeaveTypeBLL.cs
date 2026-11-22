@@ -27,7 +27,7 @@ namespace HR.BLL
         public static int Create(string code, string name, bool isLimited, int? maxMonths, string notes)
         {
             AppContext.RequirePermission("Org.Manage");
-            Validate(code, name, isLimited, maxMonths);
+            Validate(code, name, isLimited, maxMonths, notes);
             if (LongLeaveTypeDAL.GetByCode(code) != null)
             {
                 throw new BusinessException("كود نوع الإجازة الطويلة '" + code + "' مستخدم بالفعل.");
@@ -48,7 +48,7 @@ namespace HR.BLL
             int? maxMonths, bool isActive, string notes)
         {
             AppContext.RequirePermission("Org.Manage");
-            Validate(code, name, isLimited, maxMonths);
+            Validate(code, name, isLimited, maxMonths, notes);
             LongLeaveType stored = LongLeaveTypeDAL.GetById(longLeaveTypeId);
             if (stored == null)
             {
@@ -90,7 +90,7 @@ namespace HR.BLL
                 stored.TypeCode + " - " + stored.TypeName, null);
         }
 
-        private static void Validate(string code, string name, bool isLimited, int? maxMonths)
+        private static void Validate(string code, string name, bool isLimited, int? maxMonths, string notes)
         {
             if (string.IsNullOrWhiteSpace(code))
             {
