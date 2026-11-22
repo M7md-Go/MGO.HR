@@ -52,6 +52,8 @@ namespace HR.UI.UI
         private DateTimePicker _dtpFirstWork;
         private DateTimePicker _dtpNominalHire;
         private DateTimePicker _dtpJobKeep;
+        private PictureBox _photoBox;
+        private string _photoPath; // stored relative to the app folder (portable)
 
         // Full lookup dictionaries: real Id -> display name for every entity.
         private Dictionary<int, string> _companyNames;
@@ -73,7 +75,7 @@ namespace HR.UI.UI
             Text = employeeId == null ? "إضافة موظف جديد" : "تعديل بيانات موظف";
             FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(760, 560);
+            ClientSize = new Size(760, 730);
 
             BuildControls();
             LoadLookups();
@@ -271,16 +273,40 @@ namespace HR.UI.UI
             Controls.Add(FieldLabel("ملاحظات:", labelX, 470));
             Controls.Add(_txtNotes);
 
+            // employee photo: preview + pick + clear (stored as relative app path)
+            _photoBox = new PictureBox();
+            _photoBox.Location = new Point(fieldX, 530);
+            _photoBox.Size = new Size(110, 140);
+            _photoBox.BorderStyle = BorderStyle.FixedSingle;
+            _photoBox.SizeMode = PictureBoxSizeMode.Zoom;
+            _photoBox.BackColor = Color.FromArgb(244, 246, 250);
+            Controls.Add(FieldLabel("صورة الموظف:", labelX, 530));
+            Controls.Add(_photoBox);
+
+            Button btnPickPhoto = new Button();
+            btnPickPhoto.Text = "اختيار صورة…";
+            btnPickPhoto.Location = new Point(290, 540);
+            btnPickPhoto.Size = new Size(120, 30);
+            btnPickPhoto.Click += OnPickPhotoClick;
+            Controls.Add(btnPickPhoto);
+
+            Button btnClearPhoto = new Button();
+            btnClearPhoto.Text = "إزالة الصورة";
+            btnClearPhoto.Location = new Point(290, 575);
+            btnClearPhoto.Size = new Size(120, 30);
+            btnClearPhoto.Click +=delegate { SetPhoto(null); };
+            Controls.Add(btnClearPhoto);
+
             Button btnSave = new Button();
             btnSave.Text = "حفظ";
-            btnSave.Location = new Point(340, 525);
+            btnSave.Location = new Point(340, 685);
             btnSave.Size = new Size(110, 30);
             btnSave.Click += OnSaveClick;
             Controls.Add(btnSave);
 
             Button btnCancel = new Button();
             btnCancel.Text = "إلغاء";
-            btnCancel.Location = new Point(460, 525);
+            btnCancel.Location = new Point(460, 685);
             btnCancel.Size = new Size(110, 30);
             btnCancel.Click += delegate { DialogResult = DialogResult.Cancel; };
             Controls.Add(btnCancel);
@@ -634,6 +660,7 @@ namespace HR.UI.UI
                 _dtpJobKeep.Checked = true;
                 _dtpJobKeep.Value = employee.JobKeepDate.Value;
             }
+            SetPhoto(employee.PhotoPath); // show the stored photo when editing an existing employee
         }
 
         // ---------------- save ----------------
@@ -680,6 +707,7 @@ namespace HR.UI.UI
                 employee.ContractHours = (float)_numContractHours.Value;
                 employee.Salary = _numSalary.Value == 0 ? (decimal?)null : _numSalary.Value;
                 employee.Notes = EmptyToNull(_txtNotes.Text);
+                employee.PhotoPath = _photoPath;
                 employee.FirstWorkDate = _dtpFirstWork.Checked ? (DateTime?)_dtpFirstWork.Value.Date : null;
                 employee.NominalHireDate = _dtpNominalHire.Checked ? (DateTime?)_dtpNominalHire.Value.Date : null;
                 employee.JobKeepDate = _dtpJobKeep.Checked ? (DateTime?)_dtpJobKeep.Value.Date : null;
@@ -705,6 +733,70 @@ namespace HR.UI.UI
             {
                 Logger.LogError(unexpected, "FrmEmployeeEdit.OnSaveClick");
                 Theme.ShowError("حدث خطأ أثناء الحفظ. تم حفظ التفاصيل في السجلات.");
+            }
+        }
+
+        // ---------------- employee photo ----------------
+
+        private void OnPickPhotoClick(object sender, EventArgs args)
+        {
+            try
+            {
+                using (OpenFileDialog dialog = new OpenFileDialog())
+                {
+                    dialog.Title = "اختيار صورة الموظف";
+                    dialog.Filter = "صور|*.jpg;*.jpeg;*.png;*.bmp";
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+                    string folder = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Photos");
+                    if (!System.IO.Directory.Exists(folder))
+                    {
+                        System.IO.Directory.CreateDirectory(folder);
+                    }
+                    string safeName = (_employeeId != null ? _employeeId.Value.ToString() : "new") + "_" +
+                        DateTime.Now.ToString("yyyyMMddHHmmss") + System.IO.Path.GetExtension(dialog.FileName);
+                    System.IO.File.Copy(dialog.FileName, System.IO.Path.Combine(folder, safeName), true);
+                    SetPhoto(System.IO.Path.Combine("Photos", safeName));
+                }
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmEmployeeEdit.OnPickPhotoClick");
+                Theme.ShowError("تعذر نسخ الصورة. تأكد من أن الملف صورة صالحة.");
+            }
+        }
+
+        private void SetPhoto(string storedPath)
+        {
+            _photoPath = storedPath;
+            if (_photoBox.Image != null)
+            {
+                Image old = _photoBox.Image;
+                _photoBox.Image = null;
+                old.Dispose();
+            }
+            if (string.IsNullOrEmpty(storedPath))
+            {
+                return;
+            }
+            try
+            {
+                string resolved = System.IO.Path.IsPathRooted(storedPath) ? storedPath :
+                    System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, storedPath);
+                if (System.IO.File.Exists(resolved))
+                {
+                    // GDI+ keeps using the stream for the image lifetime: read the bytes
+                    // and hand the image a private MemoryStream that is never disposed.
+                    byte[] imageBytes = System.IO.File.ReadAllBytes(resolved);
+                    System.IO.MemoryStream memory = new System.IO.MemoryStream(imageBytes);
+                    _photoBox.Image = Image.FromStream(memory);
+                }
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmEmployeeEdit.SetPhoto");
             }
         }
 

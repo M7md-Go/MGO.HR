@@ -120,6 +120,17 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                if (!TableExists(connection, "EmployeeFiles"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE EmployeeFiles (" +
+                        "FileId AUTOINCREMENT PRIMARY KEY, " +
+                        "EmployeeId LONG NOT NULL, FilePath VARCHAR(255) NOT NULL, " +
+                        "Category VARCHAR(50), Notes LONGCHAR, " +
+                        "CreatedAt DATETIME, CreatedBy LONG)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_EmployeeFiles_Emp ON EmployeeFiles (EmployeeId)");
+                }
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,

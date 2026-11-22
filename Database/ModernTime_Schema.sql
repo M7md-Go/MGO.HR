@@ -679,6 +679,17 @@ CREATE INDEX IX_LongLeave_Emp  ON LongLeaves (EmployeeId, FromDate);
 CREATE INDEX IX_LongLeave_Type ON LongLeaves (TypeId);
 CREATE INDEX IX_LongLeave_St   ON LongLeaves (Status, FromDate);
 
+CREATE TABLE EmployeeFiles (
+FileId       AUTOINCREMENT PRIMARY KEY,
+EmployeeId   LONG NOT NULL,
+FilePath     VARCHAR(255) NOT NULL,
+Category     VARCHAR(50),
+Notes        LONGCHAR,
+CreatedAt    DATETIME,
+CreatedBy    LONG
+);
+CREATE INDEX IX_EmployeeFiles_Emp ON EmployeeFiles (EmployeeId);
+
 INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
 VALUES ('ChildCare', 'رعاية الطفل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
 INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)

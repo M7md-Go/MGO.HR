@@ -25,6 +25,7 @@ namespace HR.UI.UI
         private Button _btnSuspend;
         private Button _btnActivate;
         private Button _btnArchive;
+        private Button _btnFiles;
         private List<Employee> _rows;
         private Dictionary<int, string> _departmentNames;
 
@@ -118,6 +119,11 @@ namespace HR.UI.UI
             _btnArchive.Height = 30;
             _btnArchive.Click += OnArchiveClick;
 
+            _btnFiles = new Button();
+            _btnFiles.Text = "المرفقات";
+            _btnFiles.Height = 30;
+            _btnFiles.Click += OnFilesClick;
+
             toolbar.Controls.Add(_txtSearch);
             toolbar.Controls.Add(_cboDepartment);
             toolbar.Controls.Add(_cboStatus);
@@ -128,6 +134,7 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_btnSuspend);
             toolbar.Controls.Add(_btnActivate);
             toolbar.Controls.Add(_btnArchive);
+            toolbar.Controls.Add(_btnFiles);
 
             _grid = new DataGridView();
             Theme.StyleGrid(_grid);
@@ -165,6 +172,8 @@ namespace HR.UI.UI
             suspend.Click += OnSuspendClick;
             ToolStripMenuItem archive = new ToolStripMenuItem("أرشفة");
             archive.Click += OnArchiveClick;
+            ToolStripMenuItem files = new ToolStripMenuItem("المرفقات");
+            files.Click += OnFilesClick;
             ToolStripMenuItem print = new ToolStripMenuItem("طباعة");
             print.Click += delegate { GridPrintHelper.Print(_grid, "قائمة الموظفين"); };
             menu.Items.Add(add);
@@ -172,9 +181,25 @@ namespace HR.UI.UI
             menu.Items.Add(activate);
             menu.Items.Add(suspend);
             menu.Items.Add(archive);
+            menu.Items.Add(files);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(print);
             _grid.ContextMenuStrip = menu;
+        }
+
+        /// <summary>Opens the attachments manager for the selected employee.</summary>
+        private void OnFilesClick(object sender, EventArgs args)
+        {
+            Employee selected = SelectedEmployee();
+            if (selected == null)
+            {
+                return;
+            }
+            using (FrmEmployeeFiles dialog = new FrmEmployeeFiles(selected.EmployeeId,
+                selected.FullNameAr ?? selected.FullNameEn ?? selected.EmployeeCode))
+            {
+                dialog.ShowDialog(this);
+            }
         }
 
         private void ApplyPermissionButtons()
