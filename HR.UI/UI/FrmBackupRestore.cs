@@ -76,7 +76,7 @@ namespace HR.UI.UI
             Button btnCompact = new Button();
             btnCompact.Text = "ضغط قاعدة البيانات";
             btnCompact.Height = 30;
-            btnCompact.Click += OnCompactClick;
+            btnCompact.Click += delegate { OnCompactClick(); };
 
             Label lblDbSize = new Label();
             lblDbSize.AutoSize = true;
