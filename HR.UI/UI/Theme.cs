@@ -125,7 +125,7 @@ namespace HR.UI.UI
         {
             grid.CellFormatting += delegate(object sender, DataGridViewCellFormattingEventArgs args)
             {
-                if (args.Cell == null || args.RowIndex < 0)
+                if (args.RowIndex < 0)
                 {
                     return;
                 }

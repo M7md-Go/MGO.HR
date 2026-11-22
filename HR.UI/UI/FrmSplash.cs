@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using HR.BLL;
 using HR.Entities;
 
 namespace HR.UI.UI
