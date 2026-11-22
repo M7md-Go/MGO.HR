@@ -88,6 +88,84 @@ namespace HR.UI.UI
             grid.DefaultCellStyle.Font = Font(9.5f);
             grid.RowTemplate.Height = 26;
             grid.AlternatingRowsDefaultCellStyle.BackColor = RowAlternateColor;
+            grid.Paint += GridEmptyStatePaint; // unified Arabic empty state for every themed grid
+        }
+
+        /// <summary>Draws a centered Arabic hint when a themed grid has no rows yet.</summary>
+        private static void GridEmptyStatePaint(object sender, PaintEventArgs args)
+        {
+            DataGridView grid = sender as DataGridView;
+            if (grid == null || grid.RowCount > 0 || grid.Columns.Count == 0 || grid.IsDisposed)
+            {
+                return;
+            }
+            Rectangle area = grid.ClientRectangle;
+            area.Y += grid.ColumnHeadersHeight;
+            area.Height -= grid.ColumnHeadersHeight;
+            if (area.Height <= 0)
+            {
+                return;
+            }
+            args.Graphics.FillRectangle(Brushes.White, area);
+            StringFormat format = new StringFormat();
+            format.Alignment = StringAlignment.Center;
+            format.LineAlignment = StringAlignment.Center;
+            format.FormatFlags = StringFormatFlags.DirectionRightToLeft;
+            using (SolidBrush brush = new SolidBrush(Color.FromArgb(140, 150, 165)))
+            {
+                args.Graphics.DrawString("لا توجد بيانات لعرضها", Font(11f), brush, area, format);
+            }
+        }
+
+        /// <summary>
+        /// Status color pill: colors the cells of a translated-Arabic status column
+        /// (معلق = warning, معتمد = ok, مرفوض = bad). Call once after building columns.
+        /// </summary>
+        public static void StyleStatusColumn(DataGridView grid, string columnName)
+        {
+            grid.CellFormatting += delegate(object sender, DataGridViewCellFormattingEventArgs args)
+            {
+                if (args.Cell == null || args.RowIndex < 0)
+                {
+                    return;
+                }
+                DataGridView view = sender as DataGridView;
+                if (view == null || view.Columns[args.ColumnIndex].Name != columnName)
+                {
+                    return;
+                }
+                string value = args.Value != null ? args.Value.ToString() : null;
+                Color? pill = StatusPillColor(value);
+                if (pill.HasValue)
+                {
+                    args.CellStyle.BackColor = pill.Value;
+                    args.CellStyle.ForeColor = Color.White;
+                    args.CellStyle.SelectionBackColor = pill.Value;
+                    args.CellStyle.SelectionForeColor = Color.White;
+                }
+            };
+        }
+
+        /// <summary>Maps a translated Arabic status word to its pill color; null = no pill.</summary>
+        public static Color? StatusPillColor(string status)
+        {
+            if (string.IsNullOrEmpty(status))
+            {
+                return null;
+            }
+            if (status == "معتمد" || status == "نشط" || status == "مطبق")
+            {
+                return StatusOk;
+            }
+            if (status == "معلق" || status == "بانتظار الاعتماد" || status == "قيد الانتظار")
+            {
+                return StatusWarn;
+            }
+            if (status == "مرفوض" || status == "مؤرشف" || status == "ملغي")
+            {
+                return StatusBad;
+            }
+            return null;
         }
 
         public static void ShowError(string message)

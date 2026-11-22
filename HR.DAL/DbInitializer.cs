@@ -108,6 +108,18 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                using (OleDbCommand alertsCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Alert.DeviceStaleDays'", connection))
+                {
+                    if (Convert.ToInt32(alertsCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Alert.DeviceStaleDays', '3', '" +
+                            "مركز التنبيهات: تنبيه عند عدم مزامنة جهاز بصمة منذ هذا العدد من الأيام (0 = معطل)" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,

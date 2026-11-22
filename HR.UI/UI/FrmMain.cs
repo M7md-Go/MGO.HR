@@ -7,8 +7,10 @@ using HR.Helpers;
 namespace HR.UI.UI
 {
     /// <summary>
-    /// Main shell: permission-aware side navigation, open-window tab strip
-    /// (with per-tab close), Arabic menu bar, status bar, MDI container.
+    /// Commercial main shell: six top menu tabs (RTL) instead of a side navigation,
+    /// permission-filtered professional screens under each tab, open-window tab strip
+    /// with per-tab close, MDI children always open maximized filling the parent,
+    /// status bar, and background timers (auto backup / auto fingerprint download).
     /// Opens the Dashboard automatically at startup.
     /// </summary>
     public class FrmMain : Form
@@ -18,6 +20,7 @@ namespace HR.UI.UI
         private TabControl _tabs;
         private bool _syncingTabs;
         private Timer _backupTimer;
+        private ToolStripStatusLabel _statusAlerts;
 
         public FrmMain()
         {
@@ -32,13 +35,17 @@ namespace HR.UI.UI
             MdiChildActivate += delegate { SyncTabs(); };
 
             BuildStatusBar();
-            BuildNav();
             BuildTabs();
             BuildMenu();
 
             _backupTimer = new Timer();
             _backupTimer.Interval = 60000;
-            _backupTimer.Tick += delegate { BackupBLL.RunAutoBackupIfDue(); FingerprintBLL.RunAutoDownloadIfDue(); };
+            _backupTimer.Tick += delegate
+            {
+                BackupBLL.RunAutoBackupIfDue();
+                FingerprintBLL.RunAutoDownloadIfDue();
+                RefreshAlertsCounter();
+            };
             _backupTimer.Start();
         }
 
@@ -48,9 +55,9 @@ namespace HR.UI.UI
             OpenModule("dashboard");
         }
 
-        // ---------------- navigation items ----------------
+        // ---------------- menu item model ----------------
 
-        /// <summary>One side-nav entry; Perms = any-of keys (empty/null = always visible).</summary>
+        /// <summary>One menu entry under a top tab; Perms = any-of keys (empty/null = always visible).</summary>
         private class NavItem
         {
             public string Id;
@@ -81,123 +88,121 @@ namespace HR.UI.UI
             return false;
         }
 
-        private void BuildNav()
+        // ---------------- top menu tabs ----------------
+
+        private void BuildMenu()
         {
-            Panel nav = new Panel();
-            nav.Dock = DockStyle.Right; // RTL shell: navigation panel on the visual right
-            nav.Width = 178;
-            nav.BackColor = Color.FromArgb(225, 231, 240);
+            MenuStrip menu = new MenuStrip();
+            menu.BackColor = Theme.ToolbarColor;
+            menu.RightToLeft = RightToLeft.Yes; // RTL menu bar (top-level; mirrored layout is not applicable here)
 
-            FlowLayoutPanel list = new FlowLayoutPanel();
-            list.Dock = DockStyle.Fill;
-            list.FlowDirection = FlowDirection.TopDown;
-            list.WrapContents = false;
-            list.AutoScroll = true;
-            list.BackColor = nav.BackColor;
+            // Tab 1: ملف — dashboard, backup, users, settings, logs, session.
+            ToolStripMenuItem miFile = new ToolStripMenuItem("ملف");
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("dashboard", "لوحة التحكم", null), Keys.F5));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("alerts", "مركز التنبيهات", null), Keys.F7));
+            miFile.DropDownItems.Add(new ToolStripSeparator());
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("backup", "النسخ الاحتياطي والاستعادة",
+                new string[] { "Backup.Execute" }), null));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("users", "المستخدمون والصلاحيات",
+                new string[] { "Users.Manage" }), null));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("settings", "الإعدادات",
+                new string[] { "Settings.Manage" }), null));
+            miFile.DropDownItems.Add(new ToolStripSeparator());
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("logins", "سجل الدخول",
+                new string[] { "Audit.View" }), null));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("audit", "سجل العمليات",
+                new string[] { "Audit.View" }), null));
+            miFile.DropDownItems.Add(new ToolStripSeparator());
 
-            Label brand = new Label();
-            brand.Text = "Modern Time";
-            brand.Width = 166;
-            brand.Height = 36;
-            brand.TextAlign = ContentAlignment.MiddleCenter;
-            brand.ForeColor = Theme.HeaderColor;
-            brand.Font = Theme.Font(11f);
-            list.Controls.Add(MarginWrap(brand));
+            ToolStripMenuItem miChangePassword = new ToolStripMenuItem("تغيير كلمة المرور");
+            miChangePassword.Click += OnChangePasswordClick;
+            miFile.DropDownItems.Add(miChangePassword);
 
-            AddNavSection(list, "الرئيسية");
-            AddNavItem(list, new NavItem("dashboard", "لوحة التحكم", null));
+            ToolStripMenuItem miLogout = new ToolStripMenuItem("تسجيل الخروج");
+            miLogout.Click += OnLogoutClick;
+            miFile.DropDownItems.Add(miLogout);
 
-            AddNavSection(list, "العمليات");
-            AddNavItem(list, new NavItem("employees", "الموظفون",
-                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }));
-            AddNavItem(list, new NavItem("org", "الهيكل التنظيمي",
-                new string[] { "Org.Manage" }));
-            AddNavItem(list, new NavItem("shifts", "الورديات",
-                new string[] { "Org.Manage" }));
-            AddNavItem(list, new NavItem("monthly", "الجدول الشهري",
-                new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }));
-            AddNavItem(list, new NavItem("attengine", "محرك الحضور",
-                new string[] { "Attendance.Edit" }));
-            AddNavItem(list, new NavItem("devices", "البصمة والحضور",
-                new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }));
+            ToolStripMenuItem miExit = new ToolStripMenuItem("إنهاء البرنامج");
+            miExit.Click += delegate { Close(); };
+            miFile.DropDownItems.Add(miExit);
 
-            AddNavSection(list, "الخدمات");
-            AddNavItem(list, new NavItem("leaves", "الإجازات",
-                new string[] { "Leaves.Approve", "Leave.Create" }));
-            AddNavItem(list, new NavItem("longleaves", "الإجازات طويلة المدة",
-                new string[] { "Leaves.Approve", "Leave.Create" }));
-            AddNavItem(list, new NavItem("missions", "المأموريات",
-                new string[] { "Missions.Approve", "Mission.Create" }));
-            AddNavItem(list, new NavItem("penalties", "الجزاءات",
-                new string[] { "Penalties.Add" }));
+            // Tab 2: الموظفين — full employee management.
+            ToolStripMenuItem miEmployees = new ToolStripMenuItem("الموظفين");
+            miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("employees", "إدارة الموظفين",
+                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
+            miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("archive", "أرشيف الموظفين",
+                new string[] { "Archive.Execute" }), null));
+            miEmployees.DropDownItems.Add(new ToolStripSeparator());
+            miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("org", "الهيكل التنظيمي",
+                new string[] { "Org.Manage" }), null));
+            miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("shifts", "الورديات",
+                new string[] { "Org.Manage" }), null));
 
-            AddNavSection(list, "التقارير");
-            AddNavItem(list, new NavItem("reports", "التقارير",
-                new string[] { "Reports.View" }));
+            // Tab 3: الإجازات — requests and approvals management.
+            ToolStripMenuItem miLeaves = new ToolStripMenuItem("الإجازات");
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("leaves", "طلبات الإجازات",
+                new string[] { "Leaves.Approve", "Leave.Create" }), null));
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("longleaves", "الإجازات طويلة المدة",
+                new string[] { "Leaves.Approve", "Leave.Create" }), null));
+            miLeaves.DropDownItems.Add(new ToolStripSeparator());
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("missions", "المأموريات",
+                new string[] { "Missions.Approve", "Mission.Create" }), null));
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("penalties", "الجزاءات",
+                new string[] { "Penalties.Add" }), null));
 
-            AddNavSection(list, "الإدارة");
-            AddNavItem(list, new NavItem("users", "المستخدمون والصلاحيات",
-                new string[] { "Users.Manage" }));
-            AddNavItem(list, new NavItem("audit", "سجل العمليات",
-                new string[] { "Audit.View" }));
-            AddNavItem(list, new NavItem("logins", "سجل الدخول",
-                new string[] { "Audit.View" }));
-            AddNavItem(list, new NavItem("backup", "النسخ الاحتياطي",
-                new string[] { "Backup.Execute" }));
-            AddNavItem(list, new NavItem("archive", "الأرشفة",
-                new string[] { "Archive.Execute" }));
-            AddNavItem(list, new NavItem("settings", "الإعدادات",
-                new string[] { "Settings.Manage" }));
+            // Tab 4: الجداول الشهرية.
+            ToolStripMenuItem miSchedule = new ToolStripMenuItem("الجداول الشهرية");
+            miSchedule.DropDownItems.Add(StoreAndMenu(new NavItem("monthly", "الجدول الشهري (توزيع الورديات على الموظفين)",
+                new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }), Keys.F6));
 
-            nav.Controls.Add(list);
-            Controls.Add(nav);
+            // Tab 5: الحضور والانصراف والإعدادات.
+            ToolStripMenuItem miAttendance = new ToolStripMenuItem("الحضور والانصراف والإعدادات");
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attengine", "محرك الحضور",
+                new string[] { "Attendance.Edit" }), null));
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("devices", "الأجهزة والبصمة",
+                new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("fplogs", "سجلات البصمات",
+                new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
+            miAttendance.DropDownItems.Add(new ToolStripSeparator());
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("reports", "التقارير",
+                new string[] { "Reports.View" }), null));
+
+            // Tab 6: عن النظام والمطور.
+            ToolStripMenuItem miAbout = new ToolStripMenuItem("عن النظام والمطور");
+            ToolStripMenuItem miAboutSystem = new ToolStripMenuItem("عن النظام");
+            miAboutSystem.Click += OnAboutClick;
+            miAbout.DropDownItems.Add(miAboutSystem);
+            ToolStripMenuItem miAboutDeveloper = new ToolStripMenuItem("المطور");
+            miAboutDeveloper.Click += OnDeveloperClick;
+            miAbout.DropDownItems.Add(miAboutDeveloper);
+
+            menu.Items.Add(miFile);
+            menu.Items.Add(miEmployees);
+            menu.Items.Add(miLeaves);
+            menu.Items.Add(miSchedule);
+            menu.Items.Add(miAttendance);
+            menu.Items.Add(miAbout);
+            MainMenuStrip = menu;
+            Controls.Add(menu);
         }
 
-        private Control MarginWrap(Control inner)
+        /// <summary>Permission-gated menu entry that opens a module by id.</summary>
+        private ToolStripMenuItem StoreAndMenu(NavItem item, Keys? shortcut)
         {
-            Panel wrap = new Panel();
-            wrap.Width = 166;
-            wrap.Height = inner.Height;
-            wrap.Margin = new Padding(6, 4, 6, 2);
-            inner.Dock = DockStyle.Fill;
-            wrap.Controls.Add(inner);
-            return wrap;
-        }
-
-        private void AddNavSection(FlowLayoutPanel list, string title)
-        {
-            Label section = new Label();
-            section.Text = title;
-            section.Width = 166;
-            section.Height = 24;
-            section.TextAlign = ContentAlignment.MiddleRight;
-            section.ForeColor = Color.FromArgb(90, 100, 115);
-            section.Font = Theme.Font(8.5f);
-            section.Margin = new Padding(6, 8, 6, 2);
-            list.Controls.Add(section);
-        }
-
-        private void AddNavItem(FlowLayoutPanel list, NavItem item)
-        {
-            if (!AnyPermitted(item.Perms))
+            ToolStripMenuItem menu = new ToolStripMenuItem(item.Label);
+            if (shortcut.HasValue)
             {
-                return;
+                menu.ShortcutKeys = shortcut.Value;
             }
-            Button button = new Button();
-            button.Text = item.Label;
-            button.Width = 166;
-            button.Height = 34;
-            button.TextAlign = ContentAlignment.MiddleRight;
-            button.FlatStyle = FlatStyle.Flat;
-            button.FlatAppearance.BorderSize = 0;
-            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(203, 216, 234);
-            button.BackColor = list.BackColor;
-            button.ForeColor = Color.FromArgb(45, 55, 70);
-            button.Font = Theme.Font(9.5f);
-            button.Margin = new Padding(6, 1, 6, 1);
-            button.Tag = item;
-            button.Click += delegate { OpenModule(item.Id); };
-            list.Controls.Add(button);
+            if (AnyPermitted(item.Perms))
+            {
+                menu.Click += delegate { OpenModule(item.Id); };
+            }
+            else
+            {
+                menu.Enabled = false;
+            }
+            return menu;
         }
 
         // ---------------- open-window tab strip ----------------
@@ -337,7 +342,7 @@ namespace HR.UI.UI
 
         // ---------------- module opening ----------------
 
-        private void OpenModule(string id)
+        public void OpenModule(string id)
         {
             foreach (Form child in MdiChildren)
             {
@@ -351,12 +356,14 @@ namespace HR.UI.UI
             switch (id)
             {
                 case "dashboard": form = new FrmDashboard(); break;
+                case "alerts": form = new FrmAlerts(); break;
                 case "employees": form = new FrmEmployees(); break;
                 case "org": form = new FrmLookupManager(); break;
                 case "shifts": form = new FrmShifts(); break;
                 case "monthly": form = new FrmMonthlySchedule(); break;
                 case "attengine": form = new FrmAttendanceCalc(); break;
                 case "devices": form = new FrmDevices(); break;
+                case "fplogs": form = new FrmFingerprintLogs(); break;
                 case "leaves": form = new FrmLeaves(); break;
                 case "longleaves": form = new FrmLongLeaves(); break;
                 case "missions": form = new FrmMissions(); break;
@@ -386,97 +393,36 @@ namespace HR.UI.UI
                 }
             }
             form.MdiParent = this;
-            form.FormClosed += delegate { SyncTabs(); };
+            form.WindowState = FormWindowState.Maximized; // every screen opens filling the parent window
+            form.FormClosed += delegate { SyncTabs(); RefreshAlertsCounter(); };
             form.Show();
             SyncTabs();
         }
 
-        // ---------------- menu + status bar ----------------
+        // ---------------- about ----------------
 
-        private void BuildMenu()
+        private void OnAboutClick(object sender, EventArgs args)
         {
-            MenuStrip menu = new MenuStrip();
-            menu.BackColor = Theme.ToolbarColor;
-
-            ToolStripMenuItem miSystem = new ToolStripMenuItem("النظام");
-            ToolStripMenuItem miLogout = new ToolStripMenuItem("تسجيل الخروج");
-            ToolStripMenuItem miChangePassword = new ToolStripMenuItem("تغيير كلمة المرور");
-            ToolStripMenuItem miExit = new ToolStripMenuItem("إنهاء البرنامج");
-            miSystem.DropDownItems.Add(miLogout);
-            miSystem.DropDownItems.Add(miChangePassword);
-            miSystem.DropDownItems.Add(new ToolStripSeparator());
-            miSystem.DropDownItems.Add(miExit);
-
-            ToolStripMenuItem miModules = new ToolStripMenuItem("الوحدات");
-            foreach (ToolStripMenuItem moduleMenu in BuildModuleMenuItems())
+            using (FrmAbout dialog = new FrmAbout())
             {
-                miModules.DropDownItems.Add(moduleMenu);
+                dialog.ShowDialog(this);
             }
-
-            miLogout.Click += OnLogoutClick;
-            miChangePassword.Click += OnChangePasswordClick;
-            miExit.Click += delegate { Close(); };
-
-            menu.Items.Add(miSystem);
-            menu.Items.Add(miModules);
-            MainMenuStrip = menu;
-            Controls.Add(menu);
         }
 
-        /// <summary>Module menu mirrors the side nav (same permission filtering).</summary>
-        private System.Collections.Generic.List<ToolStripMenuItem> BuildModuleMenuItems()
+        private void OnDeveloperClick(object sender, EventArgs args)
         {
-            System.Collections.Generic.List<ToolStripMenuItem> result =
-                new System.Collections.Generic.List<ToolStripMenuItem>();
-            result.Add(StoreAndMenu(new NavItem("dashboard", "لوحة التحكم", null)));
-            result.Add(StoreAndMenu(new NavItem("employees", "الموظفون",
-                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" })));
-            result.Add(StoreAndMenu(new NavItem("org", "الهيكل التنظيمي", new string[] { "Org.Manage" })));
-            result.Add(StoreAndMenu(new NavItem("shifts", "الورديات", new string[] { "Org.Manage" })));
-            result.Add(StoreAndMenu(new NavItem("monthly", "الجدول الشهري",
-                new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" })));
-            result.Add(StoreAndMenu(new NavItem("attengine", "محرك الحضور",
-                new string[] { "Attendance.Edit" })));
-            result.Add(StoreAndMenu(new NavItem("devices", "البصمة والحضور",
-                new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" })));
-            result.Add(StoreAndMenu(new NavItem("leaves", "الإجازات",
-                new string[] { "Leaves.Approve", "Leave.Create" })));
-            result.Add(StoreAndMenu(new NavItem("longleaves", "الإجازات طويلة المدة",
-                new string[] { "Leaves.Approve", "Leave.Create" })));
-            result.Add(StoreAndMenu(new NavItem("missions", "المأموريات",
-                new string[] { "Missions.Approve", "Mission.Create" })));
-            result.Add(StoreAndMenu(new NavItem("penalties", "الجزاءات",
-                new string[] { "Penalties.Add" })));
-            result.Add(StoreAndMenu(new NavItem("reports", "التقارير",
-                new string[] { "Reports.View" })));
-            result.Add(StoreAndMenu(new NavItem("users", "المستخدمون والصلاحيات",
-                new string[] { "Users.Manage" })));
-            result.Add(StoreAndMenu(new NavItem("audit", "سجل العمليات",
-                new string[] { "Audit.View" })));
-            result.Add(StoreAndMenu(new NavItem("logins", "سجل الدخول",
-                new string[] { "Audit.View" })));
-            result.Add(StoreAndMenu(new NavItem("backup", "النسخ الاحتياطي",
-                new string[] { "Backup.Execute" })));
-            result.Add(StoreAndMenu(new NavItem("archive", "الأرشفة",
-                new string[] { "Archive.Execute" })));
-            result.Add(StoreAndMenu(new NavItem("settings", "الإعدادات",
-                new string[] { "Settings.Manage" })));
-            return result;
+            try
+            {
+                System.Diagnostics.Process.Start("https://github.com/M7md-Go/MGO.HR");
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMain.OnDeveloperClick");
+                Theme.ShowError("لم يتم فتح الرابط. افتح المتصفح يدويًا: https://github.com/M7md-Go/MGO.HR");
+            }
         }
 
-        private ToolStripMenuItem StoreAndMenu(NavItem item)
-        {
-            ToolStripMenuItem menu = new ToolStripMenuItem(item.Label);
-            if (AnyPermitted(item.Perms))
-            {
-                menu.Click += delegate { OpenModule(item.Id); };
-            }
-            else
-            {
-                menu.Enabled = false;
-            }
-            return menu;
-        }
+        // ---------------- status bar ----------------
 
         private void BuildStatusBar()
         {
@@ -487,10 +433,39 @@ namespace HR.UI.UI
                 (AppContext.CurrentUser.FullName ?? AppContext.CurrentUser.Username) : "") +
                 (AppContext.IsCurrentUserAdmin ? " (مسؤول النظام)" : "");
             statusDate.Text = "الجهاز: " + AppContext.MachineName;
+
+            _statusAlerts = new ToolStripStatusLabel();
+            _statusAlerts.Text = "تنبيهات: 0";
+            _statusAlerts.ForeColor = Theme.StatusWarn;
+            _statusAlerts.DoubleClickEnabled = true;
+            _statusAlerts.Click += delegate { OpenModule("alerts"); };
+
             status.Items.Add(statusUser);
             status.Items.Add(new ToolStripStatusLabel("            "));
             status.Items.Add(statusDate);
+            status.Items.Add(new ToolStripStatusLabel("            "));
+            status.Items.Add(_statusAlerts);
             Controls.Add(status);
+            RefreshAlertsCounter();
+        }
+
+        /// <summary>Refreshes the alerts count in the status bar (never throws).</summary>
+        private void RefreshAlertsCounter()
+        {
+            if (_statusAlerts == null || IsDisposed)
+            {
+                return;
+            }
+            try
+            {
+                int count = AlertsBLL.Summary().Count;
+                _statusAlerts.Text = "تنبيهات: " + count;
+                _statusAlerts.ForeColor = count > 0 ? Theme.StatusWarn : SystemColors.ControlText;
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMain.RefreshAlertsCounter");
+            }
         }
 
         // ---------------- lifecycle ----------------

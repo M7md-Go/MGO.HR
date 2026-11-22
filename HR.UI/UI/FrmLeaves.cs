@@ -149,12 +149,32 @@ namespace HR.UI.UI
 
             _grid = new DataGridView();
             Theme.StyleGrid(_grid);
+            Theme.StyleStatusColumn(_grid, "Status"); // status color pill (معلق/معتمد/مرفوض)
             _grid.Dock = DockStyle.Fill;
             _grid.ReadOnly = true;
             _grid.AllowUserToAddRows = false;
             _grid.AllowUserToDeleteRows = false;
             _grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
             _grid.SelectionChanged += delegate { UpdateStatusIndicators(); };
+
+            // approvals quick menu on the grid (mirror of the toolbar actions)
+            ContextMenuStrip gridMenu = new ContextMenuStrip();
+            gridMenu.RightToLeft = RightToLeft.Yes;
+            gridMenu.Font = Theme.Font(9.5f);
+            ToolStripMenuItem miApprove = new ToolStripMenuItem("اعتماد");
+            miApprove.Click += delegate { OnApproveClick(); };
+            ToolStripMenuItem miReject = new ToolStripMenuItem("رفض");
+            miReject.Click += delegate { OnRejectClick(); };
+            ToolStripMenuItem miOpen = new ToolStripMenuItem("فتح / عرض");
+            miOpen.Click += delegate { OnEditClick(); };
+            ToolStripMenuItem miPrint = new ToolStripMenuItem("طباعة");
+            miPrint.Click += delegate { GridPrintHelper.Print(_grid, "قائمة طلبات الإجازات"); };
+            gridMenu.Items.Add(miApprove);
+            gridMenu.Items.Add(miReject);
+            gridMenu.Items.Add(miOpen);
+            gridMenu.Items.Add(new ToolStripSeparator());
+            gridMenu.Items.Add(miPrint);
+            _grid.ContextMenuStrip = gridMenu;
 
             Controls.Add(_grid);
             Controls.Add(toolbar);

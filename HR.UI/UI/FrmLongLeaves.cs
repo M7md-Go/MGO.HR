@@ -130,6 +130,7 @@ namespace HR.UI.UI
 
             _grid = new DataGridView();
             Theme.StyleGrid(_grid);
+            Theme.StyleStatusColumn(_grid, "Status"); // status color pill
             _grid.Dock = DockStyle.Fill;
             _grid.ReadOnly = true;
             _grid.AllowUserToAddRows = false;

@@ -42,6 +42,11 @@ namespace HR.UI
                 return;
             }
 
+            using (FrmSplash splash = new FrmSplash())
+            {
+                splash.ShowDialog();
+            }
+
             while (true)
             {
                 using (FrmLogin loginForm = new FrmLogin())

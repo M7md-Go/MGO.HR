@@ -145,7 +145,36 @@ namespace HR.UI.UI
             Controls.Add(header);
 
             ApplyPermissionButtons();
+            BuildGridContextMenu();
             Shown += delegate { LoadLookups(); Search(null); };
+        }
+
+        /// <summary>Right-click grid menu: toolbar operations plus print.</summary>
+        private void BuildGridContextMenu()
+        {
+            ContextMenuStrip menu = new ContextMenuStrip();
+            menu.RightToLeft = RightToLeft.Yes;
+            menu.Font = Theme.Font(9.5f);
+            ToolStripMenuItem add = new ToolStripMenuItem("إضافة موظف");
+            add.Click += OnAddClick;
+            ToolStripMenuItem edit = new ToolStripMenuItem("تعديل");
+            edit.Click += OnEditClick;
+            ToolStripMenuItem activate = new ToolStripMenuItem("تفعيل");
+            activate.Click += OnActivateClick;
+            ToolStripMenuItem suspend = new ToolStripMenuItem("إيقاف");
+            suspend.Click += OnSuspendClick;
+            ToolStripMenuItem archive = new ToolStripMenuItem("أرشفة");
+            archive.Click += OnArchiveClick;
+            ToolStripMenuItem print = new ToolStripMenuItem("طباعة");
+            print.Click += delegate { GridPrintHelper.Print(_grid, "قائمة الموظفين"); };
+            menu.Items.Add(add);
+            menu.Items.Add(edit);
+            menu.Items.Add(activate);
+            menu.Items.Add(suspend);
+            menu.Items.Add(archive);
+            menu.Items.Add(new ToolStripSeparator());
+            menu.Items.Add(print);
+            _grid.ContextMenuStrip = menu;
         }
 
         private void ApplyPermissionButtons()
