@@ -137,6 +137,9 @@ namespace HR.UI.UI
                 new string[] { "Org.Manage" }), null));
             miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("shifts", "الورديات",
                 new string[] { "Org.Manage" }), null));
+            miEmployees.DropDownItems.Add(new ToolStripSeparator());
+            miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("emphistory", "سجل تاريخ الموظف",
+                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
 
             // Tab 3: الإجازات — requests and approvals management.
             ToolStripMenuItem miLeaves = new ToolStripMenuItem("الإجازات");
@@ -149,6 +152,11 @@ namespace HR.UI.UI
                 new string[] { "Missions.Approve", "Mission.Create" }), null));
             miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("penalties", "الجزاءات",
                 new string[] { "Penalties.Add" }), null));
+            miLeaves.DropDownItems.Add(new ToolStripSeparator());
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("leavetypes", "أنواع الإجازات",
+                new string[] { "Org.Manage" }), null));
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("longleavetypes", "أنواع الإجازات الطويلة",
+                new string[] { "Org.Manage" }), null));
 
             // Tab 4: الجداول الشهرية.
             ToolStripMenuItem miSchedule = new ToolStripMenuItem("الجداول الشهرية");
@@ -163,6 +171,15 @@ namespace HR.UI.UI
                 new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("fplogs", "سجلات البصمات",
                 new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
+            miAttendance.DropDownItems.Add(new ToolStripSeparator());
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("holidays", "العطل الرسمية",
+                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("overtime", "العمل الإضافي",
+                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("adjustments", "تصحيحات الحضور اليدوية",
+                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
+            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attexceptions", "سجل استثناءات الحضور",
+                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
             miAttendance.DropDownItems.Add(new ToolStripSeparator());
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("reports", "التقارير",
                 new string[] { "Reports.View" }), null));
@@ -375,6 +392,13 @@ namespace HR.UI.UI
                 case "backup": form = new FrmBackupRestore(); break;
                 case "archive": form = new FrmArchive(); break;
                 case "settings": form = new FrmSettings(); break;
+                case "leavetypes": form = new FrmLeaveTypes(); break;
+                case "longleavetypes": form = new FrmLongLeaveTypes(); break;
+                case "holidays": form = new FrmPublicHolidays(); break;
+                case "overtime": form = new FrmOvertime(); break;
+                case "adjustments": form = new FrmAdjustments(); break;
+                case "attexceptions": form = new FrmAttendanceExceptions(); break;
+                case "emphistory": form = new FrmEmployeeHistory(); break;
                 default: return;
             }
             form.Tag = id;
