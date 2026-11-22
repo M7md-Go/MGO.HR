@@ -130,6 +130,203 @@ namespace HR.Services
             return report;
         }
 
+        /// <summary>تحليلي: ملخص التأخير حسب القسم لشهر محدد (مرات، دقائق، متوسط، أكثر يوم تأخيرًا).</summary>
+        public static ReportData LateByDepartment(int year, int month)
+        {
+            DateTime fromDate = new DateTime(year, month, 1);
+            DateTime toDate = fromDate.AddMonths(1).AddDays(-1);
+            List<AttendanceView> rows = AttendanceDAL.Browse(fromDate, toDate, null, null, MaxRows);
+
+            List<string> deptOrder = new List<string>(); // insertion order keeps stable output
+            Dictionary<string, System.Collections.Generic.HashSet<int>> deptEmployees =
+                new Dictionary<string, System.Collections.Generic.HashSet<int>>(StringComparer.Ordinal);
+            Dictionary<string, int> deptLateCount = new Dictionary<string, int>(StringComparer.Ordinal);
+            Dictionary<string, int> deptLateMinutes = new Dictionary<string, int>(StringComparer.Ordinal);
+            Dictionary<string, Dictionary<int, int>> deptWorstDay =
+                new Dictionary<string, Dictionary<int, int>>(StringComparer.Ordinal); // dept -> (day -> late minutes)
+
+            foreach (AttendanceView row in rows)
+            {
+                if (row.DepartmentId == null)
+                {
+                    continue;
+                }
+                string dept = string.IsNullOrEmpty(row.DepartmentName) ? "بدون قسم" : row.DepartmentName;
+                if (!deptEmployees.ContainsKey(dept))
+                {
+                    deptOrder.Add(dept);
+                    deptEmployees[dept] = new System.Collections.Generic.HashSet<int>();
+                    deptLateCount[dept] = 0;
+                    deptLateMinutes[dept] = 0;
+                    deptWorstDay[dept] = new Dictionary<int, int>();
+                }
+                if (row.EmployeeId != null)
+                {
+                    deptEmployees[dept].Add(row.EmployeeId.Value);
+                }
+                int lateMinutes = row.LateMinutes ?? 0;
+                if (lateMinutes > 0 && row.AttDate.HasValue)
+                {
+                    deptLateCount[dept] += 1;
+                    deptLateMinutes[dept] += lateMinutes;
+                    int day = row.AttDate.Value.Day;
+                    Dictionary<int, int> byDay = deptWorstDay[dept];
+                    if (!byDay.ContainsKey(day))
+                    {
+                        byDay[day] = 0;
+                    }
+                    byDay[day] += lateMinutes;
+                }
+            }
+
+            ReportData report = new ReportData();
+            report.Title = "ملخص التأخير حسب القسم";
+            report.PeriodText = "الشهر: " + year + "-" + month.ToString("00");
+            report.AddColumn("DepartmentName", "القسم", 140);
+            report.AddColumn("Employees", "عدد الموظفين", 80);
+            report.AddColumn("LateCount", "مرات التأخير", 80);
+            report.AddColumn("LateMinutes", "دقائق التأخير", 80);
+            report.AddColumn("AvgMinutes", "متوسط الدقائق/مرة", 90);
+            report.AddColumn("WorstDay", "أكثر يوم تأخيرًا", 90);
+
+            int totalLateCount = 0;
+            int totalLateMinutes = 0;
+            foreach (string dept in deptOrder)
+            {
+                int count = deptLateCount[dept];
+                int minutes = deptLateMinutes[dept];
+                int worstDay = 0;
+                int worstMinutes = 0;
+                foreach (System.Collections.Generic.KeyValuePair<int, int> pair in deptWorstDay[dept])
+                {
+                    if (pair.Value > worstMinutes)
+                    {
+                        worstMinutes = pair.Value;
+                        worstDay = pair.Key;
+                    }
+                }
+                string average = count > 0 ? Convert.ToInt32(Math.Round((double)minutes / count, MidpointRounding.AwayFromZero)).ToString() : "0";
+                report.AddRow(dept, deptEmployees[dept].Count.ToString(), count.ToString(),
+                    minutes.ToString(), average, worstDay > 0 ? worstDay.ToString() : "—");
+                totalLateCount += count;
+                totalLateMinutes += minutes;
+            }
+
+            List<string> totals = new List<string>();
+            for (int i = 0; i < report.Columns.Count; i++)
+            {
+                totals.Add(string.Empty);
+            }
+            totals[0] = "الإجمالي — عدد الأقسام: " + deptOrder.Count;
+            totals[2] = totalLateCount.ToString();
+            totals[3] = totalLateMinutes.ToString();
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>تحليلي: المصفوفة الشهرية للحضور — صف لكل موظف وعمود لكل يوم (رموز يومية).</summary>
+        public static ReportData AttendanceMatrixReport(int year, int month, int? departmentId)
+        {
+            DateTime fromDate = new DateTime(year, month, 1);
+            DateTime toDate = fromDate.AddMonths(1).AddDays(-1);
+            int daysInMonth = DateTime.DaysInMonth(year, month);
+            List<AttendanceView> rows = AttendanceDAL.Browse(fromDate, toDate, null,
+                departmentId == 0 ? (int?)null : departmentId, MaxRows);
+
+            List<int> employeeOrder = new List<int>(); // first-appearance order by code groups
+            Dictionary<int, Dictionary<int, string>> cells = new Dictionary<int, Dictionary<int, string>>();
+            Dictionary<int, string> names = new Dictionary<int, string>();
+            Dictionary<int, string> codes = new Dictionary<int, string>();
+            Dictionary<int, string> departments = new Dictionary<int, string>();
+            foreach (AttendanceView row in rows)
+            {
+                if (row.EmployeeId == null || !row.AttDate.HasValue)
+                {
+                    continue;
+                }
+                int empId = row.EmployeeId.Value;
+                if (!cells.ContainsKey(empId))
+                {
+                    employeeOrder.Add(empId);
+                    cells[empId] = new Dictionary<int, string>();
+                    names[empId] = row.EmployeeName ?? "";
+                    codes[empId] = row.EmployeeCode ?? "";
+                    departments[empId] = string.IsNullOrEmpty(row.DepartmentName) ? "بدون قسم" : row.DepartmentName;
+                }
+                cells[empId][row.AttDate.Value.Day] = StatusChar(row.Status);
+            }
+
+            ReportData report = new ReportData();
+            report.Title = "المصفوفة الشهرية للحضور";
+            report.PeriodText = "الشهر: " + year + "-" + month.ToString("00");
+            report.AddColumn("EmployeeCode", "الكود", 70);
+            report.AddColumn("EmployeeName", "الموظف", 150);
+            report.AddColumn("DepartmentName", "القسم", 110);
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                report.AddColumn("D" + day, day.ToString(), 22);
+            }
+            report.AddColumn("PresentDays", "حضور", 50);
+            report.AddColumn("LateCount", "تأخير", 50);
+            report.AddColumn("AbsentDays", "غياب", 50);
+
+            employeeOrder.Sort(delegate(int a, int b)
+            {
+                return string.CompareOrdinal(codes[a], codes[b]);
+            });
+            foreach (int empId in employeeOrder)
+            {
+                List<string> line = new List<string>();
+                line.Add(codes[empId]);
+                line.Add(names[empId]);
+                line.Add(departments[empId]);
+                int present = 0;
+                int late = 0;
+                int absent = 0;
+                for (int day = 1; day <= daysInMonth; day++)
+                {
+                    string symbol;
+                    if (!cells[empId].TryGetValue(day, out symbol))
+                    {
+                        symbol = "";
+                    }
+                    if (symbol == "ح" || symbol == "ت" || symbol == "م" || symbol == "أم")
+                    {
+                        present++;
+                    }
+                    else if (symbol == "غ")
+                    {
+                        absent++;
+                    }
+                    if (symbol == "ت")
+                    {
+                        late++;
+                    }
+                    line.Add(symbol);
+                }
+                line.Add(present.ToString());
+                line.Add(late.ToString());
+                line.Add(absent.ToString());
+                report.Rows.Add(line);
+            }
+            return report;
+        }
+
+        /// <summary>Single-character Arabic symbol of a daily attendance status (matrix cells).</summary>
+        private static string StatusChar(string status)
+        {
+            if (status == "Present") { return "ح"; }
+            if (status == "Late") { return "ت"; }
+            if (status == "EarlyLeave") { return "م"; }
+            if (status == "Mission") { return "أم"; }
+            if (status == "Absent") { return "غ"; }
+            if (status == "Leave") { return "إج"; }
+            if (status == "MissingPunch") { return "ن"; }
+            if (status == "WeeklyRest") { return "ر"; }
+            if (status == "Holiday") { return "ع"; }
+            return status ?? "";
+        }
+
         /// <summary>تقرير ملخص القسم (rule 19) — monthly aggregates per department.</summary>
         public static ReportData DepartmentMonthlySummary(int year, int month)
         {

@@ -43,7 +43,7 @@ namespace HR.DAL
             Db.ExecuteNonQuery("DELETE FROM EmployeeFiles WHERE FileId = ?", Db.P(fileId));
         }
 
-        public static int CountByEmployee(int employeeId)
+        public static long CountByEmployee(int employeeId)
         {
             return Db.Count("SELECT COUNT(*) FROM EmployeeFiles WHERE EmployeeId = ?", Db.P(employeeId));
         }

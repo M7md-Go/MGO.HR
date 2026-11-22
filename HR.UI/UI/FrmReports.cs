@@ -22,6 +22,7 @@ namespace HR.UI.UI
         private static readonly string[] ReportCodes = new string[]
         {
             "DailyAttendance", "MonthlySummary", "DepartmentSummary",
+            "LateSummary", "AttendanceMatrix",
             "Leaves", "Missions", "Penalties", "Overtime",
             "RawFingerprint", "Employees"
         };
@@ -31,6 +32,8 @@ namespace HR.UI.UI
             "الحضور اليومي",
             "ملخص الحضور الشهري",
             "ملخص الأقسام (شهري)",
+            "ملخص التأخير حسب القسم (شهري)",
+            "المصفوفة الشهرية للحضور",
             "الإجازات",
             "المأموريات",
             "الجزاءات",
@@ -41,7 +44,7 @@ namespace HR.UI.UI
 
         private static readonly string[] FilterModes = new string[]
         {
-            "None", "None", "None",
+            "None", "None", "None", "None", "None",
             "Status", "Status", "Type", "Status",
             "Device", "Archived"
         };
@@ -366,6 +369,14 @@ namespace HR.UI.UI
             {
                 _lblHint.Text = "ملخص كل الأقسام — الشهر من تاريخ البداية";
             }
+            else if (code == "LateSummary")
+            {
+                _lblHint.Text = "تحليل التأخير حسب القسم — الشهر من تاريخ البداية";
+            }
+            else if (code == "AttendanceMatrix")
+            {
+                _lblHint.Text = "مصفوفة الأيام — الشهر من تاريخ البداية، القسم من فلتر القسم";
+            }
             else if (code == "Employees")
             {
                 _lblHint.Text = "لا تنطبق فلاتر التاريخ أو القسم على هذا التقرير";
@@ -426,6 +437,14 @@ namespace HR.UI.UI
                 else if (code == "DepartmentSummary")
                 {
                     _report = ReportEngine.DepartmentMonthlySummary(fromDate.Year, fromDate.Month);
+                }
+                else if (code == "LateSummary")
+                {
+                    _report = ReportEngine.LateByDepartment(fromDate.Year, fromDate.Month);
+                }
+                else if (code == "AttendanceMatrix")
+                {
+                    _report = ReportEngine.AttendanceMatrixReport(fromDate.Year, fromDate.Month, departmentId);
                 }
                 else if (code == "Leaves")
                 {
