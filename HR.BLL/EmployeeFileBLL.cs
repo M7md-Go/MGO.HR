@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using HR.DAL;
 using HR.Entities;
+using HR.Helpers;
 
 namespace HR.BLL
 {

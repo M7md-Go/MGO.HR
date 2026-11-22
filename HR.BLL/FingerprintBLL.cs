@@ -53,6 +53,16 @@ namespace HR.BLL
         }
     }
 
+    /// <summary>Per-device connectivity diagnostic outcome (device screen sweep).</summary>
+    public class DeviceDiagnosticResult
+    {
+        public Device Device { get; set; }
+        public int? PingMs { get; set; }
+        public string SerialNumber { get; set; }
+        public string ErrorMessage { get; set; }
+        public bool Success { get { return ErrorMessage == null; } }
+    }
+
     /// <summary>
     /// Device sessions (rule 9): test connection, download raw attendance logs
     /// and list device users. Connect flow: Connect_Net → serial check →
@@ -369,6 +379,45 @@ namespace HR.BLL
                 throw new BusinessException("\u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0646\u0647\u0627\u064a\u0629 \u0642\u0628\u0644 \u062a\u0627\u0631\u064a\u062e \u0627\u0644\u0628\u062f\u0627\u064a\u0629.");
             }
             return FingerprintDAL.SearchLogs(deviceId, null, fromTime, toTime, maxRows);
+        }
+
+        /// <summary>
+        /// Sweeps all active devices: TCP connect + serial read + latency, updates
+        /// the sync state (Connected / Failed) — no log download, no device lock
+        /// beyond the connect window.
+        /// </summary>
+        public static List<DeviceDiagnosticResult> DiagnoseAll()
+        {
+            AppContext.RequirePermission("Fingerprint.ReadUsers");
+            List<DeviceDiagnosticResult> results = new List<DeviceDiagnosticResult>();
+            foreach (Device device in DeviceBLL.GetAll(false))
+            {
+                DeviceDiagnosticResult result = new DeviceDiagnosticResult();
+                result.Device = device;
+                try
+                {
+                    using (ZkGateway gateway = ZkGateway.Create())
+                    {
+                        Stopwatch ping = Stopwatch.StartNew();
+                        ConnectAndVerify(gateway, device);
+                        result.PingMs = (int)ping.ElapsedMilliseconds;
+                        result.SerialNumber = gateway.GetSerialNumber(MachineNumber());
+                        gateway.Disconnect();
+                    }
+                    DeviceDAL.UpdateSyncState(device.DeviceId, DateTime.Now, "Connected", result.PingMs);
+                }
+                catch (BusinessException expected)
+                {
+                    result.ErrorMessage = expected.Message;
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FingerprintBLL.DiagnoseAll/" + device.DeviceName);
+                    result.ErrorMessage = "حدث خطأ غير متوقع أثناء الفحص — راجع السجلات.";
+                }
+                results.Add(result);
+            }
+            return results;
         }
 
         /// <summary>Connect over TCP then verify the device serial against the registry.</summary>

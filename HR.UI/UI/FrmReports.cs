@@ -78,6 +78,7 @@ namespace HR.UI.UI
         private DateTimePicker _dtpTo;
         private Label _lblHint;
         private Button _btnRefresh;
+        private Button _btnPrint;
         private Button _btnExport;
         private DataGridView _grid;
         private ReportData _report;
@@ -192,6 +193,11 @@ namespace HR.UI.UI
             _btnRefresh.Height = 30;
             _btnRefresh.Click += delegate { Reload(); };
 
+            _btnPrint = new Button();
+            _btnPrint.Text = "طباعة";
+            _btnPrint.Height = 30;
+            _btnPrint.Click += delegate { OnPrintClick(); };
+
             _btnExport = new Button();
             _btnExport.Text = "تصدير إلى Excel";
             _btnExport.Height = 30;
@@ -212,6 +218,7 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_dtpTo);
             toolbar.Controls.Add(_lblHint);
             toolbar.Controls.Add(_btnRefresh);
+            toolbar.Controls.Add(_btnPrint);
             toolbar.Controls.Add(_btnExport);
 
             _grid = new DataGridView();
@@ -531,6 +538,20 @@ namespace HR.UI.UI
         /// Exports the last previewed report with SaveFileDialog + ExcelWriter
         /// (SpreadsheetML 2003, UTF-8 BOM, RTL) — Excel 2007 compatible.
         /// </summary>
+        /// <summary>Opens the RTL print preview for the current report grid.</summary>
+        private void OnPrintClick()
+        {
+            if (_report == null)
+            {
+                Theme.ShowInfo("اعرض التقرير أولاً ثم اطبع.");
+                return;
+            }
+            string title = _cboReport.SelectedIndex >= 0 && _cboReport.SelectedIndex < ReportNames.Length
+                ? ReportNames[_cboReport.SelectedIndex]
+                : "تقرير";
+            GridPrintHelper.Print(_grid, title);
+        }
+
         private void OnExportClick()
         {
             if (_report == null)

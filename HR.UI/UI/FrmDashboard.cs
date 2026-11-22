@@ -35,6 +35,8 @@ namespace HR.UI.UI
         private DataGridView _gridDepartments;
         private DataGridView _gridFingerprints;
         private DataGridView _gridDevices;
+        private BarChartPanel _chartPresent;
+        private BarChartPanel _chartAbsent;
         private Timer _refreshTimer;
 
         public FrmDashboard()
@@ -182,6 +184,27 @@ namespace HR.UI.UI
             kpis.Controls.Add(BuildKpiPanel("مأموريات معتمدة", ref _lblMissions, Theme.HeaderColor), 1, 1);
             kpis.Controls.Add(BuildKpiPanel("أيام عمل محسوبة", ref _lblWorked, Theme.StatusOk), 0, 1);
 
+            // RTL bar charts (pure GDI, zero new references) between the KPI row
+            // and the data grids.
+            _chartPresent = new BarChartPanel();
+            _chartPresent.ChartTitle = "أيام الحضور حسب القسم";
+            _chartPresent.BarColor = Color.FromArgb(43, 140, 100);
+            _chartPresent.BorderStyle = BorderStyle.FixedSingle;
+
+            _chartAbsent = new BarChartPanel();
+            _chartAbsent.ChartTitle = "أيام الغياب حسب القسم";
+            _chartAbsent.BarColor = Color.FromArgb(178, 60, 60);
+            _chartAbsent.BorderStyle = BorderStyle.FixedSingle;
+
+            TableLayoutPanel chartRow = new TableLayoutPanel();
+            chartRow.Dock = DockStyle.Top;
+            chartRow.Height = 190;
+            chartRow.ColumnCount = 2;
+            chartRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            chartRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50f));
+            chartRow.Controls.Add(_chartPresent, 0, 0);
+            chartRow.Controls.Add(_chartAbsent, 1, 0);
+
             SplitContainer bottom = new SplitContainer();
             bottom.Dock = DockStyle.Fill;
             bottom.Orientation = Orientation.Horizontal;
@@ -240,6 +263,7 @@ namespace HR.UI.UI
             bottom.SplitterDistance = 260;
 
             Controls.Add(bottom);
+            Controls.Add(chartRow);
             Controls.Add(kpis);
             Controls.Add(toolbar);
             Controls.Add(header);
@@ -337,6 +361,7 @@ namespace HR.UI.UI
             {
                 return;
             }
+            RefreshCharts(null);
             try
             {
                 int? departmentId = _cboDepartment.SelectedValue is int ? (int)_cboDepartment.SelectedValue : 0;
@@ -368,6 +393,7 @@ namespace HR.UI.UI
                     row.Cells["Present"].Value = stat.Present;
                     row.Cells["Absent"].Value = stat.Absent;
                 }
+                RefreshCharts(data.DepartmentStats);
 
                 if (_gridFingerprints.Columns.Count == 0)
                 {
@@ -412,6 +438,43 @@ namespace HR.UI.UI
             {
                 Logger.LogError(unexpected, "FrmDashboard.Reload");
                 Theme.ShowError("حدث خطأ أثناء بناء لوحة التحكم.");
+            }
+        }
+
+        /// <summary>
+        /// Feeds the department bar charts. Called with null in the early guard
+        /// path so the empty charts still paint their empty-state text; any
+        /// painting failure must never break the dashboard reload.
+        /// </summary>
+        private void RefreshCharts(List<DepartmentStat> stats)
+        {
+            if (IsDisposed || _chartPresent == null || _chartAbsent == null)
+            {
+                return;
+            }
+            try
+            {
+                List<KeyValuePair<string, float>> present = new List<KeyValuePair<string, float>>();
+                List<KeyValuePair<string, float>> absent = new List<KeyValuePair<string, float>>();
+                if (stats != null)
+                {
+                    foreach (DepartmentStat stat in stats)
+                    {
+                        if (present.Count >= 12)
+                        {
+                            break; // keep labels readable
+                        }
+                        string name = string.IsNullOrEmpty(stat.DepartmentName) ? "(بدون قسم)" : stat.DepartmentName;
+                        present.Add(new KeyValuePair<string, float>(name, stat.Present));
+                        absent.Add(new KeyValuePair<string, float>(name, stat.Absent));
+                    }
+                }
+                _chartPresent.SetSeries(present);
+                _chartAbsent.SetSeries(absent);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmDashboard.RefreshCharts");
             }
         }
 

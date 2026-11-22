@@ -28,6 +28,7 @@ namespace HR.UI.UI
         private Button _btnDownload;
         private Button _btnDownloadAll;
         private Button _btnLogs;
+        private Button _btnDiagnose;
         private DataGridView _grid;
         private List<Device> _rows;
 
@@ -115,6 +116,11 @@ namespace HR.UI.UI
             _btnLogs.Height = 30;
             _btnLogs.Click += delegate { OnLogsClick(); };
 
+            _btnDiagnose = new Button();
+            _btnDiagnose.Text = "فحص الأجهزة";
+            _btnDiagnose.Height = 30;
+            _btnDiagnose.Click += delegate { OnDiagnoseClick(); };
+
             toolbar.Controls.Add(_chkIncludeInactive);
             toolbar.Controls.Add(_btnRefresh);
             toolbar.Controls.Add(_btnAdd);
@@ -122,6 +128,7 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_btnToggle);
             toolbar.Controls.Add(_btnDelete);
             toolbar.Controls.Add(_btnTest);
+            toolbar.Controls.Add(_btnDiagnose);
             toolbar.Controls.Add(_btnUsers);
             toolbar.Controls.Add(_btnDownload);
             toolbar.Controls.Add(_btnDownloadAll);
@@ -164,6 +171,7 @@ namespace HR.UI.UI
             bool allow = !downloading && _canManage;
             _btnDownload.Enabled = allow;
             _btnDownloadAll.Enabled = allow;
+            _btnDiagnose.Enabled = allow;
             UseWaitCursor = downloading;
         }
 
@@ -532,6 +540,76 @@ namespace HR.UI.UI
                 }
             }
             lines.Insert(0, "نتيجة التنزيل — أجهزة ناجحة: " + ok + ", متعثرة: " + failed);
+            return string.Join("\n", lines.ToArray());
+        }
+
+        /// <summary>Connectivity sweep of every active device (no log download).</summary>
+        private void OnDiagnoseClick()
+        {
+            StartBackgroundDiagnostics(delegate { return FingerprintBLL.DiagnoseAll(); });
+        }
+
+        private void StartBackgroundDiagnostics(Func<List<DeviceDiagnosticResult>> work)
+        {
+            SetDownloadsEnabled(false);
+            BackgroundWorker worker = new BackgroundWorker();
+            worker.DoWork += delegate(object sender, DoWorkEventArgs args)
+            {
+                args.Result = work();
+            };
+            worker.RunWorkerCompleted += delegate(object sender, RunWorkerCompletedEventArgs args)
+            {
+                SetDownloadsEnabled(true);
+                try
+                {
+                    if (args.Error != null)
+                    {
+                        if (args.Error is BusinessException)
+                        {
+                            Theme.ShowError(args.Error.Message);
+                            return;
+                        }
+                        Logger.LogError(args.Error, "FrmDevices.BackgroundDiagnostics");
+                        Theme.ShowError("حدث خطأ أثناء فحص الأجهزة. تم حفظ التفاصيل في السجلات.");
+                        return;
+                    }
+                    Reload();
+                    Theme.ShowInfo(BuildDiagnosticsReport(args.Result as List<DeviceDiagnosticResult>));
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FrmDevices.BackgroundDiagnosticsCompleted");
+                    Theme.ShowError("حدث خطأ أثناء عرض نتيجة الفحص.");
+                }
+            };
+            worker.RunWorkerAsync();
+        }
+
+        /// <summary>Builds the per-device ✔/✖ diagnostics report.</summary>
+        private string BuildDiagnosticsReport(List<DeviceDiagnosticResult> results)
+        {
+            if (results == null || results.Count == 0)
+            {
+                return "لا يوجد أجهزة نشطة لفحصها.";
+            }
+            List<string> lines = new List<string>();
+            int ok = 0;
+            int failed = 0;
+            foreach (DeviceDiagnosticResult result in results)
+            {
+                if (result.Success)
+                {
+                    ok++;
+                    lines.Add("✔ '" + result.Device.DeviceName + "' — متصل، زمن الاستجابة " + result.PingMs.Value + " ms" +
+                        (string.IsNullOrEmpty(result.SerialNumber) ? "" : "، الرقم التسلسلي: " + result.SerialNumber));
+                }
+                else
+                {
+                    failed++;
+                    lines.Add("✖ '" + result.Device.DeviceName + "' — فشل: " + result.ErrorMessage);
+                }
+            }
+            lines.Insert(0, "نتيجة فحص الأجهزة — متصلة: " + ok + ", متعثرة: " + failed);
             return string.Join("\n", lines.ToArray());
         }
 

@@ -73,10 +73,23 @@ namespace HR.UI.UI
             _btnBackupNow.Height = 30;
             _btnBackupNow.Click += delegate { OnBackupNowClick(); };
 
+            Button btnCompact = new Button();
+            btnCompact.Text = "ضغط قاعدة البيانات";
+            btnCompact.Height = 30;
+            btnCompact.Click += OnCompactClick;
+
+            Label lblDbSize = new Label();
+            lblDbSize.AutoSize = true;
+            lblDbSize.ForeColor = Color.FromArgb(60, 72, 90);
+            lblDbSize.Margin = new Padding(12, 10, 12, 0);
+            lblDbSize.Text = "حجم قاعدة البيانات: " + (BackupBLL.DatabaseSizeBytes() / 1024.0 / 1024.0).ToString("0.0") + " م.ب";
+
             backupBar.Controls.Add(lblFolder);
             backupBar.Controls.Add(_txtFolder);
             backupBar.Controls.Add(_btnBrowse);
             backupBar.Controls.Add(_btnBackupNow);
+            backupBar.Controls.Add(btnCompact);
+            backupBar.Controls.Add(lblDbSize);
 
             Label lblFiles = new Label();
             lblFiles.Text = "ملفات النسخ في المجلد — حدد ملفًا لاستعادته ( سيُنشأ قبل ذلك نسخ أمان تلقائي )";
@@ -122,6 +135,7 @@ namespace HR.UI.UI
 
             bool canRun = AppContext.HasPermission("Backup.Execute");
             _btnBackupNow.Enabled = canRun;
+            btnCompact.Enabled = canRun;
             RegisterRestoreButton(restoreHost, canRun);
             LoadFiles();
             LoadLog();
@@ -303,6 +317,30 @@ namespace HR.UI.UI
             column.FillWeight = fillWeight;
             column.SortMode = DataGridViewColumnSortMode.NotSortable;
             grid.Columns.Add(column);
+        }
+
+        /// <summary>Compacts the Access database (defrags pages, reclaims deleted space).</summary>
+        private void OnCompactClick()
+        {
+            if (!Theme.Confirm("سيتم فتح قاعدة البيانات وإعادة بنائها ملفًا جديدًا. يجب إغلاق النوافذ والاتصالات الأخرى." +
+                "\n\nهل تريد تنفيذ الضغط الآن؟"))
+            {
+                return;
+            }
+            try
+            {
+                BackupBLL.CompactDatabase();
+                Theme.ShowInfo("تم ضغط قاعدة البيانات بنجاح.");
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmBackupRestore.OnCompactClick");
+                Theme.ShowError("حدث خطأ أثناء الضغط. تم حفظ التفاصيل في السجلات.");
+            }
         }
     }
 }

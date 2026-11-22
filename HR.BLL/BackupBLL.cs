@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using HR.DAL;
 using HR.Entities;
 using HR.Helpers;
@@ -160,6 +161,86 @@ namespace HR.BLL
             {
                 Logger.LogError(autoBackupFailure, "BackupBLL.RunAutoBackupIfDue failed");
             }
+        }
+
+        /// <summary>Current size of the MDB database file in bytes (0 when missing).</summary>
+        public static long DatabaseSizeBytes()
+        {
+            try
+            {
+                FileInfo info = new FileInfo(AppContext.DatabasePath);
+                return info.Exists ? info.Length : 0;
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
+        /// <summary>
+        /// Compacts the Access database using the Jet JRO component (late-bound COM,
+        /// no new assembly reference): compacts to a temp file, keeps a safety copy
+        /// of the original beside it, then swaps. Throws Arabic BusinessException
+        /// when JRO is unavailable.
+        /// </summary>
+        public static void CompactDatabase()
+        {
+            string sourcePath = AppContext.DatabasePath;
+            if (string.IsNullOrEmpty(sourcePath) || !File.Exists(sourcePath))
+            {
+                throw new BusinessException("ملف قاعدة البيانات غير موجود.");
+            }
+            string tempPath = sourcePath + ".compact.tmp";
+            string backupPath = sourcePath + ".before-compact.bak";
+            string sourceConn = Db.BuildConnectionString(sourcePath);
+            string targetConn = Db.BuildConnectionString(tempPath);
+            Type jetEngineType = Type.GetTypeFromProgID("JRO.JetEngine");
+            if (jetEngineType == null)
+            {
+                throw new BusinessException("مكوّن ضغط قاعدة Jet (JRO) غير متوفر على هذا الجهاز. " +
+                    "ثبّت Microsoft Jet 4.0 Service Pack 8 أو قم بالنسخ الاحتياطي يدويًا بدلًا من الضغط.");
+            }
+            if (File.Exists(tempPath))
+            {
+                File.Delete(tempPath);
+            }
+            object engine = null;
+            try
+            {
+                engine = Activator.CreateInstance(jetEngineType);
+                jetEngineType.InvokeMember("CompactDatabase", BindingFlags.InvokeMethod, null, engine,
+                    new object[] { sourceConn, targetConn });
+            }
+            catch (Exception unexpected)
+            {
+                throw new BusinessException("فشل ضغط قاعدة البيانات: " + unexpected.Message);
+            }
+            finally
+            {
+                if (engine != null)
+                {
+                    try { System.Runtime.InteropServices.Marshal.ReleaseComObject(engine); }
+                    catch (Exception) { }
+                }
+            }
+            // swap: original -> safety copy, compacted -> original
+            if (File.Exists(backupPath))
+            {
+                File.Delete(backupPath);
+            }
+            File.Move(sourcePath, backupPath);
+            try
+            {
+                File.Move(tempPath, sourcePath);
+            }
+            catch (Exception)
+            {
+                File.Move(backupPath, sourcePath); // roll back on any failure
+                throw;
+            }
+            try { File.Delete(backupPath); }
+            catch (Exception) { }
+            Db.ResetConnectionString();
         }
     }
 }
