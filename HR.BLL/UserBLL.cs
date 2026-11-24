@@ -278,6 +278,92 @@ namespace HR.BLL
             return UserDAL.GetAllRoles();
         }
 
+        /// <summary>Creates a non-admin role (unique Arabic-validated name, audit "Roles.Create").</summary>
+        public static int CreateRole(string roleName)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            roleName = (roleName ?? "").Trim();
+            ValidateRoleName(roleName);
+            if (UserDAL.GetRoleByRoleName(roleName) != null)
+            {
+                throw new BusinessException("اسم الدور '" + roleName + "' مستخدم بالفعل.");
+            }
+            int roleId = UserDAL.InsertRole(roleName);
+            AuditBLL.Log("Roles.Create", "Roles", roleId.ToString(), null, roleName);
+            return roleId;
+        }
+
+        /// <summary>Renames a role; the built-in admin role may not be renamed (audit "Roles.Rename").</summary>
+        public static void RenameRole(int roleId, string roleName)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            Role stored = UserDAL.GetRole(roleId);
+            if (stored == null)
+            {
+                throw new BusinessException("الدور المطلوب تعديله غير موجود.");
+            }
+            if (stored.IsAdmin == true)
+            {
+                throw new BusinessException("دور مشرف النظام مدمج ولا يمكن إعادة تسميته.");
+            }
+            roleName = (roleName ?? "").Trim();
+            ValidateRoleName(roleName);
+            Role duplicate = UserDAL.GetRoleByRoleName(roleName);
+            if (duplicate != null && duplicate.RoleId != roleId)
+            {
+                throw new BusinessException("اسم الدور '" + roleName + "' مستخدم بالفعل.");
+            }
+            string oldName = stored.RoleName;
+            UserDAL.UpdateRoleName(roleId, roleName);
+            AuditBLL.Log("Roles.Rename", "Roles", roleId.ToString(), oldName, roleName);
+        }
+
+        /// <summary>
+        /// Deletes a role after two guards: admin roles are built-in and role
+        /// assignment blocks deletion (no orphaned users — audit "Roles.Delete").
+        /// </summary>
+        public static void DeleteRole(int roleId)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            Role stored = UserDAL.GetRole(roleId);
+            if (stored == null)
+            {
+                throw new BusinessException("الدور المطلوب حذفه غير موجود.");
+            }
+            if (stored.IsAdmin == true)
+            {
+                throw new BusinessException("دور مشرف النظام مدمج ولا يمكن حذفه.");
+            }
+            long users = UserDAL.CountUsersInRole(roleId);
+            if (users > 0)
+            {
+                throw new BusinessException("لا يمكن حذف الدور لارتباطه بـ " + users +
+                    " مستخدم — انقل المستخدمين إلى دور آخر أولًا.");
+            }
+            UserDAL.DeleteRole(roleId);
+            AuditBLL.Log("Roles.Delete", "Roles", roleId.ToString(), stored.RoleName, null);
+        }
+
+        /// <summary>Accounts currently assigned to one role (roles screen column).</summary>
+        public static long CountUsersInRole(int roleId)
+        {
+            AppContext.RequirePermission("Users.Manage");
+            return UserDAL.CountUsersInRole(roleId);
+        }
+
+        /// <summary>Role name for display (drives both add and rename dialogs).</summary>
+        private static void ValidateRoleName(string roleName)
+        {
+            if (string.IsNullOrWhiteSpace(roleName))
+            {
+                throw new BusinessException("أدخل اسم الدور.");
+            }
+            if (roleName.Length > 50)
+            {
+                throw new BusinessException("اسم الدور لا يتجاوز 50 حرفًا.");
+            }
+        }
+
         /// <summary>
         /// Updates username / full name / role / department (rule 21 + BR-20):
         /// unique username, a user cannot change his own role, and the last

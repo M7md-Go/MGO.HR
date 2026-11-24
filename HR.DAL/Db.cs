@@ -109,43 +109,67 @@ namespace HR.DAL
         /// <summary>Executes a parameterized statement and returns affected rows.</summary>
         public static int ExecuteNonQuery(string sql, params OleDbParameter[] parameters)
         {
-            using (OleDbConnection connection = CreateConnection())
-            using (OleDbCommand command = new OleDbCommand(sql, connection))
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            try
             {
-                AddParameters(command, parameters);
-                return command.ExecuteNonQuery();
+                using (OleDbConnection connection = CreateConnection())
+                using (OleDbCommand command = new OleDbCommand(sql, connection))
+                {
+                    AddParameters(command, parameters);
+                    return command.ExecuteNonQuery();
+                }
+            }
+            finally
+            {
+                QueryMonitor.Record(sql, watch.ElapsedMilliseconds);
             }
         }
 
         /// <summary>Executes a scalar query and returns the object value or null.</summary>
         public static object ExecuteScalar(string sql, params OleDbParameter[] parameters)
         {
-            using (OleDbConnection connection = CreateConnection())
-            using (OleDbCommand command = new OleDbCommand(sql, connection))
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            try
             {
-                AddParameters(command, parameters);
-                object result = command.ExecuteScalar();
-                return result == DBNull.Value ? null : result;
+                using (OleDbConnection connection = CreateConnection())
+                using (OleDbCommand command = new OleDbCommand(sql, connection))
+                {
+                    AddParameters(command, parameters);
+                    object result = command.ExecuteScalar();
+                    return result == DBNull.Value ? null : result;
+                }
+            }
+            finally
+            {
+                QueryMonitor.Record(sql, watch.ElapsedMilliseconds);
             }
         }
 
         /// <summary>Executes a SELECT and maps each row with the supplied mapper.</summary>
         public static List<T> ReadList<T>(string sql, Func<OleDbDataReader, T> map, params OleDbParameter[] parameters)
         {
-            List<T> results = new List<T>();
-            using (OleDbConnection connection = CreateConnection())
-            using (OleDbCommand command = new OleDbCommand(sql, connection))
+            System.Diagnostics.Stopwatch watch = System.Diagnostics.Stopwatch.StartNew();
+            try
             {
-                AddParameters(command, parameters);
-                using (OleDbDataReader reader = command.ExecuteReader())
+                List<T> results = new List<T>();
+                using (OleDbConnection connection = CreateConnection())
+                using (OleDbCommand command = new OleDbCommand(sql, connection))
                 {
-                    while (reader.Read())
+                    AddParameters(command, parameters);
+                    using (OleDbDataReader reader = command.ExecuteReader())
                     {
-                        results.Add(map(reader));
+                        while (reader.Read())
+                        {
+                            results.Add(map(reader));
+                        }
                     }
                 }
+                return results;
             }
-            return results;
+            finally
+            {
+                QueryMonitor.Record(sql, watch.ElapsedMilliseconds);
+            }
         }
 
         /// <summary>Reads a single row or returns default(T) when not found.</summary>

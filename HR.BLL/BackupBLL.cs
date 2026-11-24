@@ -19,11 +19,20 @@ namespace HR.BLL
         public const string TypeManual = "Manual";
         public const string TypeAuto = "Auto";
         public const string TypePreRestore = "PreRestore";
+        public const string TypePreCleanup = "PreCleanup";
+        private const string FilePrefix = "ModernTime_";
 
-        /// <summary>Default destination: DataFolder\Backups (created on demand).</summary>
+        /// <summary>
+        /// Backup destination (rule 36 — configurable, not hardcoded): the
+        /// "Backup.Folder" AppSettings key overrides the default
+        /// DataFolder\Backups; the folder is created on demand.
+        /// </summary>
         public static string DefaultBackupFolder()
         {
-            string folder = Path.Combine(AppContext.DataFolder, "Backups");
+            string configured = (SettingsBLL.GetString("Backup.Folder", "") ?? "").Trim();
+            string folder = string.IsNullOrWhiteSpace(configured)
+                ? Path.Combine(AppContext.DataFolder, "Backups")
+                : configured;
             if (!Directory.Exists(folder))
             {
                 Directory.CreateDirectory(folder);
@@ -31,13 +40,29 @@ namespace HR.BLL
             return folder;
         }
 
-        /// <summary>Copies the live MDB to a timestamped file and logs the result.</summary>
+        /// <summary>Permission-checked backup entry point.</summary>
         public static string Backup(string targetFolder, string backupType)
         {
             if (backupType != TypeAuto)
             {
                 AppContext.RequirePermission("Backup.Execute");
             }
+            return BackupInternal(targetFolder, backupType);
+        }
+
+        /// <summary>
+        /// Safety backup for privileged maintenance tools (data cleanup):
+        /// the caller enforces its own permission (Settings.Manage), so this
+        /// entry point does not demand Backup.Execute as well.
+        /// </summary>
+        public static string BackupForMaintenance(string targetFolder, string backupType)
+        {
+            return BackupInternal(targetFolder, backupType);
+        }
+
+        /// <summary>Shared backup body: timestamped copy + BackupLogs row + audit + retention purge.</summary>
+        private static string BackupInternal(string targetFolder, string backupType)
+        {
             string databasePath = AppContext.DatabasePath;
             if (string.IsNullOrEmpty(databasePath) || !File.Exists(databasePath))
             {
@@ -48,7 +73,7 @@ namespace HR.BLL
             {
                 throw new BusinessException("مجلد النسخ غير موجود: " + folder);
             }
-            string fileName = "ModernTime_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".mdb";
+            string fileName = FilePrefix + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".mdb";
             string targetPath = Path.Combine(folder, fileName);
             File.Copy(databasePath, targetPath, true);
             FileInfo info = new FileInfo(targetPath);
@@ -64,6 +89,8 @@ namespace HR.BLL
 
             AuditBLL.Log("Backup.Create", "BackupLogs", backupType, null, targetPath);
             Logger.LogInfo("BackupBLL.Backup", backupType + " -> " + targetPath);
+
+            PurgeExpiredBackups(folder);
             return targetPath;
         }
 
@@ -84,6 +111,13 @@ namespace HR.BLL
                 StringComparison.OrdinalIgnoreCase))
             {
                 throw new BusinessException("الملف المحدد هو ملف قاعدة البيانات الحالي نفسه.");
+            }
+            // never restore an invalid copy: explicit Arabic refusal, current data stays untouched
+            string invalidReason = VerifyBackupFile(backupPath);
+            if (invalidReason != null)
+            {
+                throw new BusinessException("رفض استعادة نسخة غير صالحة: " + invalidReason +
+                    "\nبياناتك الحالية لم تُلمس. اختر نسخة صالحة أو أنشئ نسخة جديدة أولًا.");
             }
             string safetyPath = Backup(DefaultBackupFolder(), TypePreRestore);
             File.Copy(backupPath, AppContext.DatabasePath, true);

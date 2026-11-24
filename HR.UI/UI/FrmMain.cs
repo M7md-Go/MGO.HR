@@ -105,6 +105,8 @@ namespace HR.UI.UI
                 new string[] { "Backup.Execute" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("users", "المستخدمون والصلاحيات",
                 new string[] { "Users.Manage" }), null));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("roles", "إدارة الأدوار",
+                new string[] { "Users.Manage" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("settings", "الإعدادات",
                 new string[] { "Settings.Manage" }), null));
             miFile.DropDownItems.Add(new ToolStripSeparator());
@@ -184,6 +186,15 @@ namespace HR.UI.UI
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("reports", "التقارير",
                 new string[] { "Reports.View" }), null));
 
+            // Tab 7: إدارة قاعدة البيانات — administrators only (Settings.Manage).
+            ToolStripMenuItem miDatabase = new ToolStripMenuItem("إدارة قاعدة البيانات");
+            miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbinfo", "معلومات ومراقبة قاعدة البيانات",
+                new string[] { "Settings.Manage" }), null));
+            miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbtables", "استعراض الجداول",
+                new string[] { "Settings.Manage" }), null));
+            miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbcleanup", "تنظيف السجلات القديمة",
+                new string[] { "Settings.Manage" }), null));
+
             // Tab 6: عن النظام والمطور.
             ToolStripMenuItem miAbout = new ToolStripMenuItem("عن النظام والمطور");
             ToolStripMenuItem miAboutSystem = new ToolStripMenuItem("عن النظام");
@@ -198,6 +209,7 @@ namespace HR.UI.UI
             menu.Items.Add(miLeaves);
             menu.Items.Add(miSchedule);
             menu.Items.Add(miAttendance);
+            menu.Items.Add(miDatabase);
             menu.Items.Add(miAbout);
             MainMenuStrip = menu;
             Controls.Add(menu);
@@ -399,6 +411,10 @@ namespace HR.UI.UI
                 case "adjustments": form = new FrmAdjustments(); break;
                 case "attexceptions": form = new FrmAttendanceExceptions(); break;
                 case "emphistory": form = new FrmEmployeeHistory(); break;
+                case "roles": form = new FrmRoles(); break;
+                case "dbinfo": form = new FrmDbInfo(); break;
+                case "dbtables": form = new FrmDbTables(); break;
+                case "dbcleanup": form = new FrmDataCleanup(); break;
                 default: return;
             }
             form.Tag = id;

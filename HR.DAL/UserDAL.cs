@@ -158,6 +158,45 @@ namespace HR.DAL
                 Db.P(roleName));
         }
 
+        /// <summary>Number of accounts assigned to a role (roles with users cannot be deleted).</summary>
+        public static long CountUsersInRole(int roleId)
+        {
+            return Db.Count("SELECT COUNT(*) FROM Users WHERE RoleId = ?", Db.P(roleId));
+        }
+
+        /// <summary>Creates a non-admin role with the given name (unique name is enforced by the UNIQUE index).</summary>
+        public static int InsertRole(string roleName)
+        {
+            return Db.ExecuteInTransaction(delegate(OleDbConnection connection, System.Data.OleDb.OleDbTransaction transaction)
+            {
+                using (System.Data.OleDb.OleDbCommand command = connection.CreateCommand())
+                {
+                    command.Transaction = transaction;
+                    command.CommandText = "INSERT INTO Roles (RoleName, IsAdmin) VALUES (?, False)";
+                    command.Parameters.Add(Db.P(roleName));
+                    command.ExecuteNonQuery();
+                    return Convert.ToInt32(Db.ExecuteScalarOn(connection, transaction, "SELECT @@IDENTITY"));
+                }
+            });
+        }
+
+        /// <summary>Renames a role.</summary>
+        public static void UpdateRoleName(int roleId, string roleName)
+        {
+            Db.ExecuteNonQuery("UPDATE Roles SET RoleName = ? WHERE RoleId = ?", Db.P(roleName), Db.P(roleId));
+        }
+
+        /// <summary>Removes a role and its permission grants (only roleless-user-free roles reach here).</summary>
+        public static void DeleteRole(int roleId)
+        {
+            Db.ExecuteInTransaction(delegate(OleDbConnection connection, System.Data.OleDb.OleDbTransaction transaction)
+            {
+                Db.ExecuteNonQueryOn(connection, transaction, "DELETE FROM RolePermissions WHERE RoleId = ?", Db.P(roleId));
+                Db.ExecuteNonQueryOn(connection, transaction, "DELETE FROM Roles WHERE RoleId = ?", Db.P(roleId));
+                return true;
+            });
+        }
+
         /// <summary>Permission keys granted to the user's role.</summary>
         public static List<string> GetRolePermissionKeys(int roleId)
         {

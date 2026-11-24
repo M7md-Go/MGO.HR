@@ -17,6 +17,8 @@ namespace HR.BLL
         public static void Refresh()
         {
             SettingsDAL.GetAll(true);
+            // push the performance threshold to the DAL monitor (rule 36 — configurable):
+            HR.DAL.QueryMonitor.ThresholdMs = GetInt("Performance.SlowQueryMs", 500);
         }
 
         /// <summary>Gets a raw string value or the supplied default when missing.</summary>
