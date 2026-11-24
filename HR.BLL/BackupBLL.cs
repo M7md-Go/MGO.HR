@@ -95,6 +95,93 @@ namespace HR.BLL
         }
 
         /// <summary>
+        /// Retention enforcement: deletes ModernTime_* backup files older than
+        /// Backup.RetentionDays days (the setting existed but was never
+        /// enforced — root-cause fix; 0 or a negative value keeps all copies).
+        /// Failures are logged and never break the backup result.
+        /// </summary>
+        private static void PurgeExpiredBackups(string folder)
+        {
+            try
+            {
+                int retentionDays = SettingsBLL.GetInt("Backup.RetentionDays", 30);
+                if (retentionDays <= 0)
+                {
+                    return;
+                }
+                DateTime cutoff = DateTime.Now.AddDays(-retentionDays);
+                int purged = 0;
+                foreach (FileInfo file in new DirectoryInfo(folder).GetFiles(FilePrefix + "*.mdb"))
+                {
+                    if (file.LastWriteTime < cutoff)
+                    {
+                        file.Delete();
+                        purged++;
+                    }
+                }
+                if (purged > 0)
+                {
+                    AuditBLL.Log("Backup.Purge", "BackupLogs", purged.ToString(), null,
+                        "RetentionDays=" + retentionDays + " @ " + folder);
+                    Logger.LogInfo("BackupBLL.PurgeExpiredBackups", purged + " expired backup(s) removed from " + folder);
+                }
+            }
+            catch (Exception purgeFailure)
+            {
+                Logger.LogError(purgeFailure, "BackupBLL.PurgeExpiredBackups");
+            }
+        }
+
+        /// <summary>
+        /// Integrity check of a candidate backup file: MDB/Jet 4.0 file
+        /// signature ("Standard Jet DB" at offset 4), non-trivial size, and an
+        /// openable schema catalog. Returns null when the file is usable,
+        /// otherwise an Arabic reason (an invalid copy is refused for restore —
+        /// never restored silently).
+        /// </summary>
+        public static string VerifyBackupFile(string backupPath)
+        {
+            if (string.IsNullOrWhiteSpace(backupPath) || !File.Exists(backupPath))
+            {
+                return "الملف غير موجود.";
+            }
+            try
+            {
+                FileInfo info = new FileInfo(backupPath);
+                if (info.Length < 4096)
+                {
+                    return "حجم الملف صغير جدًا ليكون نسخة قاعدة بيانات.";
+                }
+                byte[] header = new byte[20];
+                using (FileStream stream = info.OpenRead())
+                {
+                    int read = stream.Read(header, 0, header.Length);
+                    if (read < header.Length)
+                    {
+                        return "الملف لا يحتوي ترويسة قاعدة Jet كاملة.";
+                    }
+                }
+                string signature = System.Text.Encoding.ASCII.GetString(header, 4, 15);
+                if (!signature.StartsWith("Standard Jet DB", StringComparison.Ordinal))
+                {
+                    return "الملف ليس قاعدة بيانات Microsoft Access (توقيع ترويسة مختلف).";
+                }
+                using (System.Data.OleDb.OleDbConnection connection =
+                    new System.Data.OleDb.OleDbConnection(Db.BuildConnectionString(info.FullName)))
+                {
+                    connection.Open();
+                    connection.GetOleDbSchemaTable(System.Data.OleDb.OleDbSchemaGuid.Tables, null);
+                }
+                return null;
+            }
+            catch (Exception verificationFailure)
+            {
+                Logger.LogError(verificationFailure, "BackupBLL.VerifyBackupFile");
+                return "تعذّر فتح الملف كقاعدة Jet — على الأغلب نسخة تالفة أو محجوبة بأخرى.";
+            }
+        }
+
+        /// <summary>
         /// Restores a chosen backup: verifies the file, takes a PreRestore
         /// safety backup of the current database, copies the backup over the
         /// live file and logs the restore. Other workstations must shut down
