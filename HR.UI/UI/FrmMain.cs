@@ -109,6 +109,8 @@ namespace HR.UI.UI
                 new string[] { "Users.Manage" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("settings", "الإعدادات",
                 new string[] { "Settings.Manage" }), null));
+            miFile.DropDownItems.Add(StoreAndMenu(new NavItem("printsettings", "إعدادات الطباعة والشعارات",
+                new string[] { "Settings.Manage" }), null));
             miFile.DropDownItems.Add(new ToolStripSeparator());
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("logins", "سجل الدخول",
                 new string[] { "Audit.View" }), null));
@@ -404,6 +406,7 @@ namespace HR.UI.UI
                 case "backup": form = new FrmBackupRestore(); break;
                 case "archive": form = new FrmArchive(); break;
                 case "settings": form = new FrmSettings(); break;
+                case "printsettings": form = new FrmPrintSettings(); break;
                 case "leavetypes": form = new FrmLeaveTypes(); break;
                 case "longleavetypes": form = new FrmLongLeaveTypes(); break;
                 case "holidays": form = new FrmPublicHolidays(); break;

@@ -549,7 +549,7 @@ namespace HR.UI.UI
             string title = _cboReport.SelectedIndex >= 0 && _cboReport.SelectedIndex < ReportNames.Length
                 ? ReportNames[_cboReport.SelectedIndex]
                 : "تقرير";
-            GridPrintHelper.Print(_grid, title);
+            GridPrintHelper.Print(_grid, title, _report.PeriodText);
         }
 
         private void OnExportClick()
