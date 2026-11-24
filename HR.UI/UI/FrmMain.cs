@@ -196,6 +196,8 @@ namespace HR.UI.UI
                 new string[] { "Settings.Manage" }), null));
             miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbcleanup", "تنظيف السجلات القديمة",
                 new string[] { "Settings.Manage" }), null));
+            miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("demo", "توليد بيانات تجريبية",
+                new string[] { "Settings.Manage" }), null));
 
             // Tab 6: عن النظام والمطور.
             ToolStripMenuItem miAbout = new ToolStripMenuItem("عن النظام والمطور");
@@ -418,6 +420,7 @@ namespace HR.UI.UI
                 case "dbinfo": form = new FrmDbInfo(); break;
                 case "dbtables": form = new FrmDbTables(); break;
                 case "dbcleanup": form = new FrmDataCleanup(); break;
+                case "demo": form = new FrmDemoData(); break;
                 default: return;
             }
             form.Tag = id;
