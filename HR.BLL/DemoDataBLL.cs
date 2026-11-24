@@ -128,7 +128,7 @@ namespace HR.BLL
         private static OrgIds SeedOrganization(SeedSummary summary)
         {
             OrgIds org = new OrgIds();
-            Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            Db.ExecuteInTransaction<object>(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 org.CompanyId = ExecId(connection, transaction,
                     "INSERT INTO Companies (CompanyCode, CompanyNameAr, CompanyNameEn, TaxNumber, Phone, Email, Address, IsActive) " +
@@ -204,6 +204,7 @@ namespace HR.BLL
                 Exec(connection, transaction,
                     "INSERT INTO Qualifications (QualCode, QualName) VALUES (?, ?)",
                     Db.P("Q3"), Db.P("ثانوية"));
+                return null;
             });
             summary.Add("Companies/Branches/Departments/...", 21);
             return org;
@@ -214,7 +215,7 @@ namespace HR.BLL
         private static List<int> SeedEmployees(OrgIds org, int? currentUserId, SeedSummary summary)
         {
             List<int> employeeIds = new List<int>();
-            Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            Db.ExecuteInTransaction<object>(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 using (OleDbCommand lookup = new OleDbCommand(
                     "SELECT TOP 1 EmployeeStatusId FROM EmployeeStatus ORDER BY EmployeeStatusId",
@@ -290,6 +291,7 @@ namespace HR.BLL
                             Db.PNullableId(currentUserId));
                     }
                 }
+                return null;
             });
             summary.Add("Employees", EmployeeCount);
             summary.Add("EmployeeHistory", EmployeeCount / 4);
@@ -366,7 +368,7 @@ namespace HR.BLL
 
         private static void SeedUsers(OrgIds org, int? currentUserId, SeedSummary summary)
         {
-            Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            Db.ExecuteInTransaction<object>(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 int supervisorRoleId = ScalarId(connection, transaction,
                     "SELECT TOP 1 RoleId FROM Roles WHERE RoleName = 'Supervisor'");
@@ -397,6 +399,7 @@ namespace HR.BLL
                 }
                 summary.Add("Users", 4);
                 summary.Add("LoginHistory", 6);
+                return null;
             });
         }
 
@@ -416,7 +419,7 @@ namespace HR.BLL
 
         private static void SeedDevicesAndPunches(OrgIds org, List<int> employeeIds, SeedSummary summary)
         {
-            Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            Db.ExecuteInTransaction<object>(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 int deviceMainId = ExecId(connection, transaction,
                     "INSERT INTO Devices (DeviceName, IpAddress, Port, SerialNumber, LastSync, LastStatus, LastPingDelay, IsActive, Location) " +
@@ -471,6 +474,7 @@ namespace HR.BLL
                 }
                 summary.Add("FingerprintLogs", punches);
                 summary.Notes.Add("سيناريوهات مدمجة قصدًا: تأخير دوري لبعض الموظفين، غياب يوم واحد لكل دورة، وبصمة خروج ناقصة — لتجربة كل حالات المحرك.");
+                return null;
             });
         }
 
@@ -530,7 +534,7 @@ namespace HR.BLL
         private static void SeedOperations(List<int> employeeIds, OrgIds org, int? currentUserId, SeedSummary summary)
         {
             List<string[]> demoFileRows = new List<string[]>();
-            Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
+            Db.ExecuteInTransaction<object>(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 // ---- public holidays (recurring so they count every matching month-day) ----
                 int year = DateTime.Today.Year;
@@ -665,6 +669,7 @@ namespace HR.BLL
                     summary.Notes.Add("تعذر إنشاء ملفات الموظفين التجريبية على القرص: " + fileFailure.Message);
                     demoFileRows.Clear();
                 }
+                return null;
             });
             // after the transaction commits: the Employees write-lock is released,
             // so the file rows can be inserted through the normal DAL path
