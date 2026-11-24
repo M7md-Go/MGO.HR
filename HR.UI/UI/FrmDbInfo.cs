@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using HR.BLL;
-using HR.DAL;
 using HR.Helpers;
 
 namespace HR.UI.UI
@@ -18,7 +17,7 @@ namespace HR.UI.UI
     {
         private DataGridView _gridFacts;
         private DataGridView _gridSlow;
-        private List<QueryMonitor.SlowQuery> _slow;
+        private List<DatabaseBLL.SlowQueryView> _slow;
 
         public FrmDbInfo()
         {
@@ -153,7 +152,7 @@ namespace HR.UI.UI
                 AddSlowColumn("At", "الوقت", 140);
                 AddSlowColumn("Elapsed", "الزمن (ms)", 90);
                 AddSlowColumn("Sql", "الاستعلام", 700);
-                foreach (QueryMonitor.SlowQuery query in _slow)
+                foreach (DatabaseBLL.SlowQueryView query in _slow)
                 {
                     int rowIndex = _gridSlow.Rows.Add();
                     DataGridViewRow row = _gridSlow.Rows[rowIndex];

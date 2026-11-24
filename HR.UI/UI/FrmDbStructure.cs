@@ -94,7 +94,7 @@ namespace HR.UI.UI
                 AddHead(_gridColumns, "Len", "الطول", 70);
                 AddHead(_gridColumns, "Null", "يقبل فراغ", 80);
                 AddHead(_gridColumns, "Pk", "مفتاح أساسي", 90);
-                foreach (DbSchema.ColumnInfo column in DatabaseBLL.GetColumns(_tableName))
+                foreach (DatabaseBLL.ColumnView column in DatabaseBLL.GetColumns(_tableName))
                 {
                     int rowIndex = _gridColumns.Rows.Add();
                     DataGridViewRow row = _gridColumns.Rows[rowIndex];
@@ -111,7 +111,7 @@ namespace HR.UI.UI
                 AddHead(_gridIndexes, "Column", "العمود", 180);
                 AddHead(_gridIndexes, "Unique", "فريد", 70);
                 AddHead(_gridIndexes, "Primary", "أساسي", 70);
-                foreach (DbSchema.IndexInfo index in DatabaseBLL.GetIndexes(_tableName))
+                foreach (DatabaseBLL.IndexView index in DatabaseBLL.GetIndexes(_tableName))
                 {
                     int rowIndex = _gridIndexes.Rows.Add();
                     DataGridViewRow row = _gridIndexes.Rows[rowIndex];

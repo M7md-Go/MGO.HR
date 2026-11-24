@@ -15,6 +15,34 @@ namespace HR.BLL
     /// </summary>
     public static class DatabaseBLL
     {
+        /// <summary>BLL-side view of a table column (keeps HR.UI free of any HR.DAL reference).</summary>
+        public class ColumnView
+        {
+            public string Name { get; set; }
+            public int Ordinal { get; set; }
+            public string TypeName { get; set; }
+            public int? MaxChars { get; set; }
+            public bool Nullable { get; set; }
+            public bool PrimaryKey { get; set; }
+        }
+
+        /// <summary>BLL-side view of a table index.</summary>
+        public class IndexView
+        {
+            public string IndexName { get; set; }
+            public string ColumnName { get; set; }
+            public bool Unique { get; set; }
+            public bool Primary { get; set; }
+        }
+
+        /// <summary>BLL-side view of one slow statement recorded by the DAL layer.</summary>
+        public class SlowQueryView
+        {
+            public string Sql { get; set; }
+            public long ElapsedMs { get; set; }
+            public DateTime At { get; set; }
+        }
+
         /// <summary>Whitelisted maintenance tables with their date column (nothing else is ever mass-deleted).</summary>
         private static readonly Dictionary<string, string> CleanupTables =
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -87,16 +115,38 @@ namespace HR.BLL
             return DbSchema.CountRows(tableName);
         }
 
-        public static List<DbSchema.ColumnInfo> GetColumns(string tableName)
+        public static List<ColumnView> GetColumns(string tableName)
         {
             RequireAdmin();
-            return DbSchema.GetColumns(tableName);
+            List<ColumnView> result = new List<ColumnView>();
+            foreach (DbSchema.ColumnInfo column in DbSchema.GetColumns(tableName))
+            {
+                ColumnView view = new ColumnView();
+                view.Name = column.Name;
+                view.Ordinal = column.Ordinal;
+                view.TypeName = column.TypeName;
+                view.MaxChars = column.MaxChars;
+                view.Nullable = column.Nullable;
+                view.PrimaryKey = column.PrimaryKey;
+                result.Add(view);
+            }
+            return result;
         }
 
-        public static List<DbSchema.IndexInfo> GetIndexes(string tableName)
+        public static List<IndexView> GetIndexes(string tableName)
         {
             RequireAdmin();
-            return DbSchema.GetIndexes(tableName);
+            List<IndexView> result = new List<IndexView>();
+            foreach (DbSchema.IndexInfo index in DbSchema.GetIndexes(tableName))
+            {
+                IndexView view = new IndexView();
+                view.IndexName = index.IndexName;
+                view.ColumnName = index.ColumnName;
+                view.Unique = index.Unique;
+                view.Primary = index.Primary;
+                result.Add(view);
+            }
+            return result;
         }
 
         public static List<string> Relationships()
@@ -117,10 +167,19 @@ namespace HR.BLL
             return DbSchema.TestConnection();
         }
 
-        public static List<QueryMonitor.SlowQuery> SlowQueries()
+        public static List<SlowQueryView> SlowQueries()
         {
             RequireAdmin();
-            return QueryMonitor.Snapshot();
+            List<SlowQueryView> result = new List<SlowQueryView>();
+            foreach (QueryMonitor.SlowQuery query in QueryMonitor.Snapshot())
+            {
+                SlowQueryView view = new SlowQueryView();
+                view.Sql = query.Sql;
+                view.ElapsedMs = query.ElapsedMs;
+                view.At = query.At;
+                result.Add(view);
+            }
+            return result;
         }
 
         public static void ClearSlowLog()
