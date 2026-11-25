@@ -144,6 +144,18 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                using (OleDbCommand fiscalStartCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Leave.FiscalYearStart'", connection))
+                {
+                    if (Convert.ToInt32(fiscalStartCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Leave.FiscalYearStart', '07-01', '" +
+                            "بداية السنة المالية لأرصدة الإجازات والحساب السنوي بصيغة MM-dd (07-01 = 1 يوليو حتى 30 يونيو)" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "EmployeeFiles"))
                 {
                     ExecuteUpgrade(connection,

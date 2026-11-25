@@ -28,6 +28,7 @@ namespace HR.UI.UI
         private TextBox _txtEmployee;
         private Label _lblEmployeeName;
         private NumericUpDown _numYear;
+        private Label _lblFiscalRange;
         private Button _btnLoad;
         private DataGridView _gridBalance;
         private DataGridView _gridSpecial;
@@ -64,7 +65,7 @@ namespace HR.UI.UI
             _lblEmployeeName.ForeColor = Theme.HeaderTextColor;
 
             Label lblYear = new Label();
-            lblYear.Text = "السنة:";
+            lblYear.Text = "السنة المالية:";
             lblYear.Location = new Point(20, 57);
             lblYear.Size = new Size(130, 22);
 
@@ -73,13 +74,19 @@ namespace HR.UI.UI
             _numYear.Size = new Size(100, 26);
             _numYear.Minimum = 2000;
             _numYear.Maximum = 2100;
-            _numYear.Value = DateTime.Now.Year;
+            _numYear.Value = LeaveBLL.BalanceYearFor(DateTime.Now);
 
             _btnLoad = new Button();
             _btnLoad.Text = "عرض الأرصدة";
             _btnLoad.Location = new Point(270, 51);
             _btnLoad.Size = new Size(130, 30);
             _btnLoad.Click += delegate { LoadBalances(); };
+
+            _lblFiscalRange = new Label();
+            _lblFiscalRange.Text = string.Empty;
+            _lblFiscalRange.Location = new Point(415, 57);
+            _lblFiscalRange.Size = new Size(330, 22);
+            _lblFiscalRange.ForeColor = Theme.HeaderTextColor;
 
             // ---------- annual balances grid ----------
             Label lblBalanceTitle = new Label();
@@ -132,7 +139,7 @@ namespace HR.UI.UI
 
             Controls.AddRange(new Control[]
             {
-                lblEmployee, _txtEmployee, _lblEmployeeName, lblYear, _numYear, _btnLoad,
+                lblEmployee, _txtEmployee, _lblEmployeeName, lblYear, _numYear, _btnLoad, _lblFiscalRange,
                 lblBalanceTitle, _gridBalance, lblSpecialTitle, _gridSpecial,
                 _lblQuota, _numQuota, _btnSaveQuota, btnClose
             });
@@ -142,16 +149,16 @@ namespace HR.UI.UI
 
             _gridBalance.Columns.Add("TypeName", "النوع");
             _gridBalance.Columns.Add("TypeCode", "الكود");
-            _gridBalance.Columns.Add("QuotaDays", "حصة السنة");
+            _gridBalance.Columns.Add("QuotaDays", "حصة السنة المالية");
             _gridBalance.Columns.Add("UsedDays", "المستهلك");
-            _gridBalance.Columns.Add("YearRemaining", "متبقي السنة");
+            _gridBalance.Columns.Add("YearRemaining", "متبقي السنة المالية");
             _gridBalance.Columns.Add("CarryOverDays", "منقول من أعوام سابقة");
             _gridBalance.Columns.Add("TotalAvailable", "الإجمالي المتاح");
 
             _gridSpecial.Columns.Add("TypeName", "النوع");
             _gridSpecial.Columns.Add("TypeCode", "الكود");
             _gridSpecial.Columns.Add("ApprovedRequests", "عدد الطلبات المعتمدة");
-            _gridSpecial.Columns.Add("UsedDays", "المستهلك هذا العام");
+            _gridSpecial.Columns.Add("UsedDays", "المستهلك في السنة المالية");
             _gridSpecial.Columns.Add("LifetimeDays", "الاستهلاك الكلي (كل السنوات)");
             _gridSpecial.Columns.Add("AnnualDays", "الحد الاسترشادي");
             _gridSpecial.Columns.Add("RequiresDoc", "متطلب مستند");
@@ -237,6 +244,8 @@ namespace HR.UI.UI
                     return;
                 }
                 int year = (int)_numYear.Value;
+                _lblFiscalRange.Text = "الفترة: من " + LeaveBLL.FiscalStart(year).ToString("yyyy-MM-dd") +
+                    " إلى " + LeaveBLL.FiscalStart(year + 1).AddDays(-1).ToString("yyyy-MM-dd");
                 _balanceRows = LeaveBLL.BalanceGrid(_employeeId, year);
                 foreach (LeaveBalanceView view in _balanceRows)
                 {

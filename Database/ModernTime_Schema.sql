@@ -633,6 +633,8 @@ VALUES ('Leave.BalanceTypes','Annual,Casual','أنواع الإجازات الم
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Leave.AllowCarryOver','1','استخدام المتبقي من أعوام سابقة في رصيد الإجازات الاعتيادية/العارضة (1 = نعم، 0 = لا)', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
+VALUES ('Leave.FiscalYearStart','07-01','بداية السنة المالية لأرصدة الإجازات والحساب السنوي بصيغة MM-dd (07-01 = 1 يوليو حتى 30 يونيو)' , Now());
+INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sch.MixPolicy','Both','سياسة منع خلط ورديات العمل (BR-09): Both = الصنف والمدة معا (افتراضي)، Duration = المدة فقط، Category = الصنف فقط، Off = معطل', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Alert.DeviceStaleDays','3','مركز التنبيهات: تنبيه عند عدم مزامنة جهاز بصمة منذ هذا العدد من الأيام (0 = معطل)', Now());

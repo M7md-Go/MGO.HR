@@ -180,13 +180,19 @@ namespace HR.DAL
                 Db.P(employeeId), Db.PDate(endDate), Db.PDate(startDate), Db.P(excludeLeaveId ?? 0)) > 0;
         }
 
-        /// <summary>SUM of DaysCount over approved requests of the employee in one year (balance source of truth).</summary>
-        public static int UsedDays(int employeeId, int year, int leaveTypeId)
+        /// <summary>
+        /// SUM of DaysCount over approved requests inside an explicit date
+        /// window (balance source of truth). The window is the FISCAL YEAR
+        /// (default 1/7 → 30/6) resolved by LeaveBLL — the DAL stays
+        /// year-label agnostic.
+        /// </summary>
+        public static int UsedDaysInWindow(int employeeId, int leaveTypeId,
+            DateTime fromDate, DateTime toExclusive)
         {
             object value = Db.ExecuteScalar(
                 "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND Status = 'Approved' " +
-                "AND LeaveTypeId = ? AND YEAR(StartDate) = ?",
-                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+                "AND LeaveTypeId = ? AND StartDate >= ? AND StartDate < ?",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.PDate(fromDate), Db.PDate(toExclusive));
             return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
         }
 
@@ -264,18 +270,19 @@ namespace HR.DAL
             return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
         }
 
-        /// <summary>Approved request count and day total for one type in one year (special usage grid).</summary>
-        public static int[] ApprovedRequestStats(int employeeId, int year, int leaveTypeId)
+        /// <summary>Approved request count and day total inside a fiscal-year window (special usage grid).</summary>
+        public static int[] ApprovedRequestStatsInWindow(int employeeId, int leaveTypeId,
+            DateTime fromDate, DateTime toExclusive)
         {
             object value = Db.ExecuteScalar(
                 "SELECT COUNT(*) FROM LeaveRequests WHERE EmployeeId = ? AND LeaveTypeId = ? " +
-                "AND Status = 'Approved' AND YEAR(StartDate) = ?",
-                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+                "AND Status = 'Approved' AND StartDate >= ? AND StartDate < ?",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.PDate(fromDate), Db.PDate(toExclusive));
             int count = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             value = Db.ExecuteScalar(
                 "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND LeaveTypeId = ? " +
-                "AND Status = 'Approved' AND YEAR(StartDate) = ?",
-                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+                "AND Status = 'Approved' AND StartDate >= ? AND StartDate < ?",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.PDate(fromDate), Db.PDate(toExclusive));
             int days = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             return new int[] { count, days };
         }

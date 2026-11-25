@@ -228,8 +228,8 @@ namespace HR.UI.UI
             try
             {
                 LeaveBalance balance = LeaveBLL.GetOrInitBalance(employeeId,
-                    _dtpStart.Value.Date.Year, leaveTypeId);
-                _lblBalance.Text = "الرصيد السنوي: الحصة " + (balance.QuotaDays ?? 0) +
+                    LeaveBLL.BalanceYearFor(_dtpStart.Value.Date), leaveTypeId);
+                _lblBalance.Text = "رصيد السنة المالية: الحصة " + (balance.QuotaDays ?? 0) +
                     " يومًا | المستخدم " + (balance.UsedDays ?? 0) +
                     " يومًا | المتبقي " + (balance.Remaining ?? 0) + " يومًا";
             }

@@ -550,12 +550,13 @@ namespace HR.BLL
                 int annualTypeId = ScalarId(connection, transaction, "SELECT TOP 1 LeaveTypeId FROM LeaveTypes WHERE LeaveTypeCode = 'Annual'");
                 int sickTypeId = ScalarId(connection, transaction, "SELECT TOP 1 LeaveTypeId FROM LeaveTypes WHERE LeaveTypeCode = 'Sick'");
                 int casualTypeId = ScalarId(connection, transaction, "SELECT TOP 1 LeaveTypeId FROM LeaveTypes WHERE LeaveTypeCode = 'Casual'");
+                int fiscalYear = LeaveBLL.BalanceYearFor(DateTime.Today);
                 int balances = 0;
                 for (int i = 0; i < employeeIds.Count; i++)
                 {
-                    balances += InsertBalance(connection, transaction, employeeIds[i], year, annualTypeId, 21, Pseudo(i, 1, 9));
-                    balances += InsertBalance(connection, transaction, employeeIds[i], year, sickTypeId, 30, Pseudo(i, 6, 4));
-                    balances += InsertBalance(connection, transaction, employeeIds[i], year, casualTypeId, 7, Pseudo(i, 2, 3));
+                    balances += InsertBalance(connection, transaction, employeeIds[i], fiscalYear, annualTypeId, 21, Pseudo(i, 1, 9));
+                    balances += InsertBalance(connection, transaction, employeeIds[i], fiscalYear, sickTypeId, 30, Pseudo(i, 6, 4));
+                    balances += InsertBalance(connection, transaction, employeeIds[i], fiscalYear, casualTypeId, 7, Pseudo(i, 2, 3));
                 }
                 summary.Add("LeaveBalances", balances);
 

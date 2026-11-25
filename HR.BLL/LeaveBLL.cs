@@ -191,6 +191,52 @@ namespace HR.BLL
         public const string BalanceTypesKey = "Leave.BalanceTypes";
         public const string CarryOverKey = "Leave.AllowCarryOver";
 
+        /// <summary>
+        /// Fiscal-year start (MM-dd). The leave-balance ledger is a FISCAL
+        /// year, not a calendar one: the balance year label is the year the
+        /// fiscal year STARTS in (default "07-01" → fiscal 2025 = 2025-07-01
+        /// → 2026-06-30), per the owner's definition 1/7 → 30/6.
+        /// </summary>
+        public const string FiscalYearKey = "Leave.FiscalYearStart";
+
+        private static int[] ParseFiscalStart()
+        {
+            string configured = SettingsBLL.GetString(FiscalYearKey, "07-01");
+            string[] parts = (configured ?? "").Trim().Split('-');
+            int month = 7;
+            int day = 1;
+            if (parts.Length == 2)
+            {
+                int parsedMonth;
+                int parsedDay;
+                if (int.TryParse(parts[0], out parsedMonth) && parsedMonth >= 1 && parsedMonth <= 12)
+                {
+                    month = parsedMonth;
+                }
+                if (int.TryParse(parts[1], out parsedDay) && parsedDay >= 1 && parsedDay <= 28)
+                {
+                    day = parsedDay;
+                }
+            }
+            return new int[] { month, day };
+        }
+
+        /// <summary>First DAY of the fiscal year whose balance label is <paramref name="balanceYear"/>.</summary>
+        public static DateTime FiscalStart(int balanceYear)
+        {
+            int[] monthDay = ParseFiscalStart();
+            return new DateTime(balanceYear, monthDay[0], monthDay[1]);
+        }
+
+        /// <summary>
+        /// Balance label of the fiscal year a given date belongs to
+        /// (dates before 1/7 belong to the fiscal year that started the previous year).
+        /// </summary>
+        public static int BalanceYearFor(DateTime date)
+        {
+            return date.Date >= FiscalStart(date.Year).Date ? date.Year : date.Year - 1;
+        }
+
         /// <summary>Codes of types managed through a yearly quota (default: Annual, Casual).</summary>
         public static List<string> BalanceTypeCodes()
         {
@@ -273,7 +319,8 @@ namespace HR.BLL
                 view.TypeName = type.TypeName;
                 view.AnnualDays = type.AnnualDays;
                 view.RequiresDocValue = type.RequiresDoc;
-                int[] stats = LeaveDAL.ApprovedRequestStats(employeeId, year, type.LeaveTypeId);
+                int[] stats = LeaveDAL.ApprovedRequestStatsInWindow(employeeId, type.LeaveTypeId,
+                    FiscalStart(year).Date, FiscalStart(year + 1).Date);
                 view.ApprovedRequests = stats[0];
                 view.UsedDays = stats[1];
                 view.LifetimeDays = LeaveDAL.UsedDaysAllYears(employeeId, type.LeaveTypeId);
@@ -372,7 +419,7 @@ namespace HR.BLL
                     throw new BusinessException("إجازة الحج تُمنح مرة واحدة في العمر — المُستهلَك سابقاً: " + lifetime + " يوماً.");
                 }
             }
-            int year = (request.StartDate ?? DateTime.Now).Year;
+            int year = BalanceYearFor(request.StartDate ?? DateTime.Now);
             LeaveBalance balance = MaterializeBalance(request.EmployeeId ?? 0, year, type.LeaveTypeId);
             // quota types may draw from the previous-years carry-over pool;
             // special types keep the plain per-year quota check.
@@ -392,8 +439,9 @@ namespace HR.BLL
                 CheckBalance(request, type, stored.LeaveId);
                 return;
             }
-            int year = (request.StartDate ?? DateTime.Now).Year;
-            int previouslyUsed = LeaveDAL.UsedDays(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
+            int year = BalanceYearFor(request.StartDate ?? DateTime.Now);
+            int previouslyUsed = LeaveDAL.UsedDaysInWindow(stored.EmployeeId ?? 0, type.LeaveTypeId,
+                FiscalStart(year).Date, FiscalStart(year + 1).Date);
             int newUsed = previouslyUsed - (stored.DaysCount ?? 0) + (request.DaysCount ?? 0);
             LeaveBalance balance = MaterializeBalance(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
             int updateAvailable = (balance.QuotaDays ?? 0) +
@@ -412,7 +460,8 @@ namespace HR.BLL
             LeaveBalance existing = LeaveDAL.GetBalance(employeeId, year, leaveTypeId);
             int quota = existing != null && existing.QuotaDays != null ?
                 existing.QuotaDays.Value : (type != null && type.AnnualDays != null ? type.AnnualDays.Value : 0);
-            int used = LeaveDAL.UsedDays(employeeId, year, leaveTypeId);
+            int used = LeaveDAL.UsedDaysInWindow(employeeId, leaveTypeId,
+                FiscalStart(year).Date, FiscalStart(year + 1).Date);
             LeaveBalance balance = new LeaveBalance();
             balance.EmployeeId = employeeId;
             balance.YearVal = year;
