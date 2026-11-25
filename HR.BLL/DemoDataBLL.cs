@@ -68,7 +68,7 @@ namespace HR.BLL
         };
 
         private const int EmployeeCount = 24;
-        private const int PunchDaysBack = 13; // two working weeks ending yesterday
+        private const int PunchDaysBack = 15; // ~13 working days ending yesterday
 
         /// <summary>True when the database holds no employees (the only safe seed state).</summary>
         public static bool IsFreshDatabase()
@@ -438,42 +438,34 @@ namespace HR.BLL
                 string insertLog = "INSERT INTO FingerprintLogs (DeviceId, EmployeeId, EmpDevCode, LogTime, InOutFlag, SourceFile, CreatedAt) " +
                     "VALUES (?, ?, ?, ?, ?, ?, ?)";
                 int punches = 0;
+                int workDayIndex = -1;
                 DateTime day = DateTime.Today.AddDays(-PunchDaysBack);
                 while (day < DateTime.Today)
                 {
                     if (day.DayOfWeek != DayOfWeek.Friday) // Sch.RestDays default = Friday
                     {
+                        workDayIndex++;
                         for (int i = 0; i < employeeIds.Count; i++)
                         {
                             int employeeId = employeeIds[i];
 
-                            // one clear "absent day" scenario per cycle
+                            // one clear "absent day" scenario per cycle (no punches at all)
                             if ((i % 13 == 5) && (day.Day % 4 == 2))
                             {
                                 continue;
                             }
 
-                            bool late = (i % 9 == 0) && (day.Day % 3 == 0);
-                            int inMinute = late ? 22 + Pseudo(i, day.Day, 10) : 50 + Pseudo(i, day.Day, 9);
-                            DateTime inPunch = day.AddHours(7).AddMinutes(inMinute);
-                            punches += InsertPunch(connection, transaction, insertLog,
-                                deviceMainId, employeeId, i, inPunch, 1);
-
-                            // one clear "missing exit punch" scenario per cycle
-                            bool missingExit = (i % 11 == 0) && (day.Day % 4 == 1);
-                            if (!missingExit)
-                            {
-                                int outMinute = Pseudo(i, day.Day + 3, 14);
-                                DateTime outPunch = day.AddHours(15).AddMinutes(outMinute);
-                                punches += InsertPunch(connection, transaction, insertLog,
-                                    deviceMainId, employeeId, i, outPunch, 0);
-                            }
+                            // deterministic rotation: across 13 working days every
+                            // employee passes through every engine test case exactly once.
+                            int scenario = (workDayIndex + i) % 13;
+                            punches += SeedScenarioPunches(connection, transaction, insertLog,
+                                deviceMainId, employeeId, i, day, scenario);
                         }
                     }
                     day = day.AddDays(1);
                 }
                 summary.Add("FingerprintLogs", punches);
-                summary.Notes.Add("سيناريوهات مدمجة قصدًا: تأخير دوري لبعض الموظفين، غياب يوم واحد لكل دورة، وبصمة خروج ناقصة — لتجربة كل حالات المحرك.");
+                summary.Notes.Add("مصفوفة سيناريوهات البصمات الكاملة (دوران يومي لكل موظف عبر 13 حالة): حضور طبيعي، تأخير تجاوز فتحة السماح، تأخير كبير (90+ دقيقة)، حضور قبل موعد الوردية، انصراف قبل الموعد، تأخير وانصراف مبكر معًا، بصمة حضور ناقصة، بصمة انصراف ناقصة، بصمة وحيدة وسط اليوم، دقائق إضافية بعد الوردية (~95 دقيقة)، إضافي كبير (~235 دقيقة)، بصمات زائدة بنمط الانصراف والعودة (استثناء بصمة زائدة)، وبصمة مكررة داخل نافذة الإهمال (المحرك يتجاهل التكرار) — مع غياب كامل كل دورة لتقييم حسابات المحرك بدقة.");
                 return null;
             });
         }
@@ -485,6 +477,113 @@ namespace HR.BLL
                 Db.P(deviceId), Db.P(employeeId), Db.P("EMP-" + (index + 1).ToString("0000")),
                 Db.PDateRequired(logTime), Db.P(inOutFlag), Db.P("DEMO-SEED"), Db.PDateRequired(DateTime.Now));
             return 1;
+        }
+
+        /// <summary>
+        /// Punch-pattern factory for attendance-engine verification (demo shift
+        /// 08:00-15:00; grace late 30 min; grace early-leave 15 min; overtime
+        /// threshold 30 min). Each scenario drives a distinct engine status or
+        /// exception when the seeded database is recalculated:
+        ///   0  normal on-time day            -> Present
+        ///   1  arrival 08:44+                -> Late (past the 30-min grace)
+        ///   2  arrival 09:31+                -> Late with 90+ late minutes
+        ///   3  arrival 07:08+                -> Present (punch before shift start)
+        ///   4  exit 14:04-                   -> EarlyLeave (past the 15-min grace)
+        ///   5  late arrival + early exit     -> Late status + EarlyLeave exception
+        ///   6  in punch without out punch    -> MissingPunch
+        ///   7  out punch without in punch    -> Absent (out punch is beyond the in window)
+        ///   8  single midday punch           -> MissingPunch (treated as in, no out)
+        ///   9  exit 16:35+                   -> Overtime row (~95 min, Auto)
+        ///  10  exit 18:55+                   -> Overtime row (~235 min, Auto)
+        ///  11  lunch-style 4 punches         -> ExtraPunch exception
+        ///  12  duplicate 30 s inside window  -> repeat ignored by the dedup window, no exception
+        /// </summary>
+        private static int SeedScenarioPunches(OleDbConnection connection, OleDbTransaction transaction,
+            string insertSql, int deviceId, int employeeId, int index, DateTime day, int scenario)
+        {
+            int jitter = Pseudo(index, day.Day, 5); // realistic 0-4 minute drift
+
+            int inHour = 7, inMinute = 52 + jitter;         // default: early real arrival
+            int outHour = 15, outMinute = 4 + jitter;       // default: shortly after shift end
+            bool punchIn = true, punchOut = true;
+
+            if (scenario == 1)          // late past grace
+            {
+                inHour = 8; inMinute = 44 + jitter; outMinute = 6 + jitter;
+            }
+            else if (scenario == 2)     // severe late (90+ minutes)
+            {
+                inHour = 9; inMinute = 31 + jitter; outMinute = 2 + jitter;
+            }
+            else if (scenario == 3)     // punch before shift time
+            {
+                inHour = 7; inMinute = 8 + jitter; outMinute = 2 + jitter;
+            }
+            else if (scenario == 4)     // exit before shift end (early leave)
+            {
+                inMinute = 56 + jitter; outHour = 14; outMinute = 4 + jitter;
+            }
+            else if (scenario == 5)     // late arrival + early leave together
+            {
+                inHour = 8; inMinute = 52 + jitter; outHour = 13; outMinute = 52 + jitter;
+            }
+            else if (scenario == 6)     // missing exit punch
+            {
+                inMinute = 54 + jitter; punchOut = false;
+            }
+            else if (scenario == 7)     // missing entry punch (out beyond the in window -> Absent)
+            {
+                punchIn = false; outMinute = 7 + jitter;
+            }
+            else if (scenario == 8)     // single midday punch -> MissingPunch
+            {
+                punchIn = false; punchOut = false; outHour = 12; outMinute = 40;
+            }
+            else if (scenario == 9)     // overtime ~95 minutes
+            {
+                inMinute = 52 + jitter; outHour = 16; outMinute = 35 + jitter;
+            }
+            else if (scenario == 10)    // heavy overtime ~235 minutes
+            {
+                inMinute = 50 + jitter; outHour = 18; outMinute = 55 + jitter;
+            }
+            else if (scenario == 11)    // extra punches: out + back in (lunch style)
+            {
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(7).AddMinutes(55), 1);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(11).AddMinutes(35), 0);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(12).AddMinutes(25), 1);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(15).AddMinutes(3), 0);
+                return 4;
+            }
+            else if (scenario == 12)    // duplicate punch inside the dedup window (30 s apart)
+            {
+                DateTime firstIn = day.AddHours(7).AddMinutes(55);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index, firstIn, 1);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    firstIn.AddSeconds(30), 1);
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(15).AddMinutes(2 + jitter), 0);
+                return 3;
+            }
+
+            int count = 0;
+            if (punchIn)
+            {
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(inHour).AddMinutes(inMinute), 1);
+                count++;
+            }
+            if (punchOut)
+            {
+                InsertPunch(connection, transaction, insertSql, deviceId, employeeId, index,
+                    day.AddHours(outHour).AddMinutes(outMinute), 0);
+                count++;
+            }
+            return count;
         }
 
         // ============================ phase 5: monthly schedules ============================
