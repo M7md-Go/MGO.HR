@@ -20,6 +20,7 @@ namespace HR.UI.UI
         {
             Theme.Apply(this);
             Text = "تسجيل الدخول";
+            Icon = Theme.AppIcon;
             FormBorderStyle = FormBorderStyle.FixedDialog;
             StartPosition = FormStartPosition.CenterScreen;
             MinimizeBox = false;

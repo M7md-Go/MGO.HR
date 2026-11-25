@@ -187,6 +187,111 @@ namespace HR.BLL
             return balances;
         }
 
+        /// <summary>Setting key listing the quota-managed leave type codes.</summary>
+        public const string BalanceTypesKey = "Leave.BalanceTypes";
+        public const string CarryOverKey = "Leave.AllowCarryOver";
+
+        /// <summary>Codes of types managed through a yearly quota (default: Annual, Casual).</summary>
+        public static List<string> BalanceTypeCodes()
+        {
+            string configured = SettingsBLL.GetString(BalanceTypesKey, "Annual,Casual");
+            List<string> codes = new List<string>();
+            foreach (string part in configured.Split(','))
+            {
+                string token = (part ?? string.Empty).Trim();
+                if (token.Length > 0)
+                {
+                    codes.Add(token);
+                }
+            }
+            return codes;
+        }
+
+        private static bool IsBalanceType(LeaveType type)
+        {
+            if (type == null || string.IsNullOrEmpty(type.LeaveTypeCode))
+            {
+                return false;
+            }
+            foreach (string code in BalanceTypeCodes())
+            {
+                if (string.Equals(code, type.LeaveTypeCode, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Annual balances grid: one row per quota type with the previous-years
+        /// carry-over pool (configurable through "Leave.AllowCarryOver").
+        /// </summary>
+        public static List<LeaveBalanceView> BalanceGrid(int employeeId, int year)
+        {
+            List<LeaveBalanceView> rows = new List<LeaveBalanceView>();
+            bool carryOverEnabled = SettingsBLL.GetBool(CarryOverKey, true);
+            foreach (LeaveType type in LeaveDAL.GetTypes())
+            {
+                if (!IsBalanceType(type))
+                {
+                    continue;
+                }
+                LeaveBalance balance = MaterializeBalance(employeeId, year, type.LeaveTypeId);
+                LeaveBalanceView view = new LeaveBalanceView();
+                view.LeaveTypeId = type.LeaveTypeId;
+                view.TypeCode = type.LeaveTypeCode;
+                view.TypeName = type.TypeName;
+                view.QuotaDays = balance.QuotaDays ?? 0;
+                view.UsedDays = balance.UsedDays ?? 0;
+                view.YearRemaining = Math.Max(0, view.QuotaDays - view.UsedDays);
+                view.CarryOverDays = carryOverEnabled
+                    ? LeaveDAL.CarryOver(employeeId, year, type.LeaveTypeId)
+                    : 0;
+                view.TotalAvailable = view.YearRemaining + view.CarryOverDays;
+                rows.Add(view);
+            }
+            return rows;
+        }
+
+        /// <summary>
+        /// Special leaves grid: all non-quota types (sick, maternity, childcare…)
+        /// tracked by their actual approved usage in the year and over all years.
+        /// </summary>
+        public static List<LeaveTypeUsageView> SpecialUsage(int employeeId, int year)
+        {
+            List<LeaveTypeUsageView> rows = new List<LeaveTypeUsageView>();
+            foreach (LeaveType type in LeaveDAL.GetTypes())
+            {
+                if (IsBalanceType(type))
+                {
+                    continue;
+                }
+                LeaveTypeUsageView view = new LeaveTypeUsageView();
+                view.LeaveTypeId = type.LeaveTypeId;
+                view.TypeCode = type.LeaveTypeCode;
+                view.TypeName = type.TypeName;
+                view.AnnualDays = type.AnnualDays;
+                view.RequiresDocValue = type.RequiresDoc;
+                int[] stats = LeaveDAL.ApprovedRequestStats(employeeId, year, type.LeaveTypeId);
+                view.ApprovedRequests = stats[0];
+                view.UsedDays = stats[1];
+                view.LifetimeDays = LeaveDAL.UsedDaysAllYears(employeeId, type.LeaveTypeId);
+                rows.Add(view);
+            }
+            return rows;
+        }
+
+        /// <summary>Carry-over pool currently usable for one employee/type/year (0 when disabled).</summary>
+        public static int UsableCarryOver(int employeeId, int year, LeaveType type)
+        {
+            if (type == null || !SettingsBLL.GetBool(CarryOverKey, true))
+            {
+                return 0;
+            }
+            return LeaveDAL.CarryOver(employeeId, year, type.LeaveTypeId);
+        }
+
         /// <summary>Edits a type quota (rule 15: values adjustable); gated by "Leaves.Approve".</summary>
         public static void SaveTypeQuota(int leaveTypeId, int? annualDays, bool? isPaid, bool? requiresDoc)
         {
@@ -269,10 +374,14 @@ namespace HR.BLL
             }
             int year = (request.StartDate ?? DateTime.Now).Year;
             LeaveBalance balance = MaterializeBalance(request.EmployeeId ?? 0, year, type.LeaveTypeId);
-            if ((request.DaysCount ?? 0) > (balance.Remaining ?? 0))
+            // quota types may draw from the previous-years carry-over pool;
+            // special types keep the plain per-year quota check.
+            int available = (balance.Remaining ?? 0) +
+                (IsBalanceType(type) ? UsableCarryOver(request.EmployeeId ?? 0, year, type) : 0);
+            if ((request.DaysCount ?? 0) > available)
             {
                 throw new BusinessException("الرصيد لا يكفي — المطلوب: " + request.DaysCount +
-                    " يوم، المتبقي: " + (balance.Remaining ?? 0) + " يوم (" + type.TypeName + ").");
+                    " يوم، المتاح: " + available + " يوم (" + type.TypeName + ").");
             }
         }
 
@@ -287,7 +396,9 @@ namespace HR.BLL
             int previouslyUsed = LeaveDAL.UsedDays(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
             int newUsed = previouslyUsed - (stored.DaysCount ?? 0) + (request.DaysCount ?? 0);
             LeaveBalance balance = MaterializeBalance(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
-            if (newUsed > (balance.QuotaDays ?? 0))
+            int updateAvailable = (balance.QuotaDays ?? 0) +
+                (IsBalanceType(type) ? UsableCarryOver(stored.EmployeeId ?? 0, year, type) : 0);
+            if (newUsed > updateAvailable)
             {
                 throw new BusinessException("الرصيد بعد التعديل يتجاوز الحصة — الحصة: " + (balance.QuotaDays ?? 0) +
                     " يوماً، المطلوب: " + newUsed + " يوماً.");

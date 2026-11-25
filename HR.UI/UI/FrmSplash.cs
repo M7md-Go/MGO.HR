@@ -17,6 +17,7 @@ namespace HR.UI.UI
         public FrmSplash()
         {
             Theme.Apply(this); // top-level dialog: mirrored RTL works here
+            Icon = Theme.AppIcon;
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.CenterScreen;
             ShowInTaskbar = false;

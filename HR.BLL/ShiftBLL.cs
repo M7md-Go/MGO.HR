@@ -113,8 +113,8 @@ namespace HR.BLL
             {
                 throw new BusinessException("الوردية '" + shift.ShiftCode + "' بدون وقت — وقت البداية والنهاية إلزاميان.");
             }
-            int? start = TimeHelper.ParseMinutes(shift.StartTime);
-            int? end = TimeHelper.ParseMinutes(shift.EndTime);
+            int? start = TimeHelper.ParseMinutes(TextNormalizer.NormalizeDigits(shift.StartTime));
+            int? end = TimeHelper.ParseMinutes(TextNormalizer.NormalizeDigits(shift.EndTime));
             if (start == null)
             {
                 throw new BusinessException("وقت بداية الوردية '" + shift.ShiftCode + "' غير صحيح؛ استخدم الصيغة HH:mm.");

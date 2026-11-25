@@ -26,6 +26,7 @@ namespace HR.UI.UI
         {
             Theme.Apply(this, false); // MDI parent: Windows ignores mirrored layout here — explicit RTL containers used instead
             Text = Theme.AppTitle;
+            Icon = Theme.AppIcon;
             IsMdiContainer = true;
             StartPosition = FormStartPosition.CenterScreen;
             Size = new Size(1200, 720);

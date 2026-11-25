@@ -21,6 +21,32 @@ namespace HR.UI.UI
         public static Color StatusWarn { get { return Color.FromArgb(196, 133, 29); } }
         public static Color StatusBad { get { return Color.FromArgb(178, 55, 55); } }
 
+        private static Icon _appIcon;
+
+        /// <summary>
+        /// Application icon (embedded in ModernTime.exe via ApplicationIcon).
+        /// Extracted lazily once; never throws — a null result simply leaves the
+        /// form with the default system icon.
+        /// </summary>
+        public static Icon AppIcon
+        {
+            get
+            {
+                if (_appIcon == null)
+                {
+                    try
+                    {
+                        _appIcon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
+                    }
+                    catch (Exception)
+                    {
+                        _appIcon = null;
+                    }
+                }
+                return _appIcon;
+            }
+        }
+
         /// <summary>Cairo font when installed, otherwise Segoe UI of the same size.</summary>
         public static Font Font(float size)
         {

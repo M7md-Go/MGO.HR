@@ -121,6 +121,10 @@ namespace HR.BLL
             {
                 throw new BusinessException("تاريخ النهاية قبل تاريخ البداية.");
             }
+            // store normalized (Western digits) times so the attendance engine
+            // and every later parser see the same canonical form.
+            mission.StartTime = TextNormalizer.NormalizeTimeText(mission.StartTime);
+            mission.EndTime = TextNormalizer.NormalizeTimeText(mission.EndTime);
             ValidateTime(mission.StartTime, "وقت بداية المأمورية");
             ValidateTime(mission.EndTime, "وقت نهاية المأمورية");
             if (!string.IsNullOrEmpty(mission.Location) && mission.Location.Length > 150)
@@ -129,8 +133,9 @@ namespace HR.BLL
             }
         }
 
-        private static void ValidateTime(string time, string fieldName)
+        private static void ValidateTime(string rawTime, string fieldName)
         {
+            string time = TextNormalizer.NormalizeDigits(rawTime);
             if (string.IsNullOrEmpty(time))
             {
                 return;

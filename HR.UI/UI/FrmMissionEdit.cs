@@ -258,7 +258,8 @@ namespace HR.UI.UI
             catch (Exception unexpected)
             {
                 Logger.LogError(unexpected, "FrmMissionEdit.OnSaveClick");
-                Theme.ShowError("حدث خطأ أثناء حفظ المأمورية.");
+                Theme.ShowError("حدث خطأ أثناء حفظ المأمورية: " + unexpected.Message +
+                    "\nتم تسجيل التفاصيل في سجل الأخطاء.");
             }
         }
     }

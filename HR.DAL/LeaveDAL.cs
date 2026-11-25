@@ -249,5 +249,35 @@ namespace HR.DAL
                     Db.P(existing.BalanceId));
             }
         }
+
+        /// <summary>
+        /// Sum of positive remainders of PREVIOUS years for one
+        /// employee/type — the carry-over pool shown and usable in the
+        /// annual balances grid.
+        /// </summary>
+        public static int CarryOver(int employeeId, int year, int leaveTypeId)
+        {
+            object value = Db.ExecuteScalar(
+                "SELECT SUM(Remaining) FROM LeaveBalances WHERE EmployeeId = ? AND LeaveTypeId = ? " +
+                "AND YearVal < ? AND Remaining > 0",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+        }
+
+        /// <summary>Approved request count and day total for one type in one year (special usage grid).</summary>
+        public static int[] ApprovedRequestStats(int employeeId, int year, int leaveTypeId)
+        {
+            object value = Db.ExecuteScalar(
+                "SELECT COUNT(*) FROM LeaveRequests WHERE EmployeeId = ? AND LeaveTypeId = ? " +
+                "AND Status = 'Approved' AND YEAR(StartDate) = ?",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+            int count = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            value = Db.ExecuteScalar(
+                "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND LeaveTypeId = ? " +
+                "AND Status = 'Approved' AND YEAR(StartDate) = ?",
+                Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
+            int days = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            return new int[] { count, days };
+        }
     }
 }

@@ -120,6 +120,30 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                using (OleDbCommand balanceTypesCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Leave.BalanceTypes'", connection))
+                {
+                    if (Convert.ToInt32(balanceTypesCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Leave.BalanceTypes', 'Annual,Casual', '" +
+                            "أنواع الإجازات المُدارة بحصة سنوية ورصيد مرحّل (الإجازات الاعتيادية والعارضة) الأكواد مفصولة بفواصل" +
+                            "', Now())");
+                    }
+                }
+                using (OleDbCommand carryOverCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Leave.AllowCarryOver'", connection))
+                {
+                    if (Convert.ToInt32(carryOverCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Leave.AllowCarryOver', '1', '" +
+                            "استخدام المتبقي من أعوام سابقة في رصيد الإجازات الاعتيادية/العارضة (1 = نعم، 0 = لا)" +
+                            "', Now())");
+                    }
+                }
                 if (!TableExists(connection, "EmployeeFiles"))
                 {
                     ExecuteUpgrade(connection,

@@ -170,10 +170,10 @@ namespace HR.BLL
             return Array.IndexOf(EngineStatuses, status) >= 0;
         }
 
-        /// <summary>Parses "HH:mm" text into an absolute moment on the given date.</summary>
-        public static DateTime? ParseTimeOfDay(string text, DateTime date)
+        /// <summary>Parses "HH:mm" text ( Eastern-Arabic digits accepted) into an absolute moment on the given date.</summary>
+        public static DateTime? ParseTimeOfDay(string rawText, DateTime date)
         {
-            string trimmed = (text ?? string.Empty).Trim();
+            string trimmed = TextNormalizer.NormalizeTimeText(rawText) ?? string.Empty;
             if (trimmed.Length == 0)
             {
                 return (DateTime?)null;

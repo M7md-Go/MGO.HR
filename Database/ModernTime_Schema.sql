@@ -629,6 +629,10 @@ VALUES ('Sch.DisableMixingCategories','YES', 'منع خلط أصناف الور�
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sch.RestDays','Friday','أيام الراحة الأسبوعية مفصولة بفواصل — أسماء عربية أو إنجليزية أو أرقام 0-6 (0 = الأحد). مثال: Friday أو Friday,Saturday', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
+VALUES ('Leave.BalanceTypes','Annual,Casual','أنواع الإجازات المُدارة بحصة سنوية ورصيد مرحّل — الإجازات الاعتيادية والعارضة (الأكواد مفصولة بفواصل)', Now());
+INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
+VALUES ('Leave.AllowCarryOver','1','استخدام المتبقي من أعوام سابقة في رصيد الإجازات الاعتيادية/العارضة (1 = نعم، 0 = لا)', Now());
+INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Sch.MixPolicy','Both','سياسة منع خلط ورديات العمل (BR-09): Both = الصنف والمدة معا (افتراضي)، Duration = المدة فقط، Category = الصنف فقط، Off = معطل', Now());
 INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt)
 VALUES ('Alert.DeviceStaleDays','3','مركز التنبيهات: تنبيه عند عدم مزامنة جهاز بصمة منذ هذا العدد من الأيام (0 = معطل)', Now());

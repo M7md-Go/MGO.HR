@@ -75,7 +75,12 @@ namespace HR.UI.UI
             Text = employeeId == null ? "إضافة موظف جديد" : "تعديل بيانات موظف";
             FormBorderStyle = FormBorderStyle.Sizable;
             StartPosition = FormStartPosition.CenterParent;
-            ClientSize = new Size(760, 730);
+            // Small screens: the form scrolls instead of pushing the save buttons
+            // out of view, and the initial height is clamped to the working area.
+            AutoScroll = true;
+            int workingHeight = Screen.PrimaryScreen.WorkingArea.Height;
+            ClientSize = new Size(760, Math.Min(760, workingHeight - 90));
+            MinimumSize = new Size(800, 540);
 
             BuildControls();
             LoadLookups();
@@ -297,19 +302,43 @@ namespace HR.UI.UI
             btnClearPhoto.Click +=delegate { SetPhoto(null); };
             Controls.Add(btnClearPhoto);
 
+            // persistent bottom bar: the save/cancel buttons can never scroll
+            // away, working at every window size (mirrored RTL: same order as
+            // the other dialogs — cancel logically left, save logically right).
+            Panel buttonBar = new Panel();
+            buttonBar.Dock = DockStyle.Bottom;
+            buttonBar.Height = 48;
+            buttonBar.BackColor = Theme.ToolbarColor;
+
             Button btnSave = new Button();
             btnSave.Text = "حفظ";
-            btnSave.Location = new Point(340, 685);
-            btnSave.Size = new Size(110, 30);
+            btnSave.Size = new Size(120, 32);
+            btnSave.Location = new Point(20, 8);
             btnSave.Click += OnSaveClick;
-            Controls.Add(btnSave);
+            buttonBar.Controls.Add(btnSave);
 
             Button btnCancel = new Button();
             btnCancel.Text = "إلغاء";
-            btnCancel.Location = new Point(460, 685);
-            btnCancel.Size = new Size(110, 30);
+            btnCancel.Size = new Size(120, 32);
+            btnCancel.Location = new Point(620, 8);
             btnCancel.Click += delegate { DialogResult = DialogResult.Cancel; };
-            Controls.Add(btnCancel);
+            buttonBar.Controls.Add(btnCancel);
+
+            // pin the cancel button to the (logical) right side at every width —
+            // the bar is mirrored RTL, so this keeps cancel visually at the end.
+            EventHandler repositionButtons = delegate
+            {
+                btnCancel.Left = buttonBar.ClientSize.Width - 140;
+                btnSave.Left = 20;
+            };
+            buttonBar.Resize += repositionButtons;
+
+            Controls.Add(buttonBar);
+            repositionButtons(null, EventArgs.Empty);
+            AcceptButton = btnSave;
+            CancelButton = btnCancel;
+            btnSave.TabIndex = 99;
+            btnCancel.TabIndex = 100;
         }
 
         // ---------------- lookup loading and combo binding ----------------
