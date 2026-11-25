@@ -141,7 +141,7 @@ namespace HR.UI.UI
             Controls.Add(toolbar);
             Controls.Add(header);
 
-            bool canApprove = AppContext.HasPermission("Attendance.Edit");
+            bool canApprove = AppContext.HasAnyPermission(new string[] { "Overtime.Approve", "Attendance.Overtime", "Attendance.Edit" });
             _btnApprove.Enabled = canApprove;
             _btnReject.Enabled = canApprove;
             Reload();

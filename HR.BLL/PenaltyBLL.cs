@@ -77,7 +77,7 @@ namespace HR.BLL
 
         public static void Delete(int penaltyId)
         {
-            AppContext.RequirePermission("Penalties.Add");
+            AppContext.RequireAnyPermission(new string[] { "Penalties.Delete", "Penalties.Add" });
             Penalty stored = PenaltyDAL.GetById(penaltyId);
             if (stored == null)
             {

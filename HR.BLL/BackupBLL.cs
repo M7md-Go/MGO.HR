@@ -189,7 +189,7 @@ namespace HR.BLL
         /// </summary>
         public static string Restore(string backupPath)
         {
-            AppContext.RequirePermission("Backup.Execute");
+            AppContext.RequireAnyPermission(new string[] { "Backup.Restore", "Backup.Execute" });
             if (string.IsNullOrWhiteSpace(backupPath) || !File.Exists(backupPath))
             {
                 throw new BusinessException("ملف النسخة المحدد غير موجود.");
@@ -242,7 +242,7 @@ namespace HR.BLL
         /// <summary>Recent BackupLogs rows (permission "Backup.Execute").</summary>
         public static List<BackupLog> GetLog(int maxRows)
         {
-            AppContext.RequirePermission("Backup.Execute");
+            AppContext.RequireAnyPermission(new string[] { "Backup.Execute", "Backup.Restore" });
             return BackupDAL.Search(maxRows);
         }
 

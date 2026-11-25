@@ -132,7 +132,7 @@ namespace HR.UI.UI
             Controls.Add(toolbar);
             Controls.Add(header);
 
-            bool canManage = AppContext.HasPermission("Attendance.Edit");
+            bool canManage = AppContext.HasAnyPermission(new string[] { "Attendance.Holidays", "Attendance.Edit" });
             _btnAdd.Enabled = canManage;
             _btnEdit.Enabled = canManage;
             _btnDelete.Enabled = canManage;

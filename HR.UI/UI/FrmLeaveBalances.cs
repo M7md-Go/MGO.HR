@@ -145,7 +145,7 @@ namespace HR.UI.UI
             });
 
             CancelButton = btnClose;
-            _btnSaveQuota.Enabled = AppContext.HasPermission("Leaves.Approve");
+            _btnSaveQuota.Enabled = AppContext.HasAnyPermission(new string[] { "Leaves.Approve", "Leaves.Balances" });
 
             _gridBalance.Columns.Add("TypeName", "النوع");
             _gridBalance.Columns.Add("TypeCode", "الكود");

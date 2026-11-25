@@ -103,15 +103,15 @@ namespace HR.UI.UI
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("alerts", "مركز التنبيهات", null), Keys.F7));
             miFile.DropDownItems.Add(new ToolStripSeparator());
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("backup", "النسخ الاحتياطي والاستعادة",
-                new string[] { "Backup.Execute" }), null));
+                new string[] { "Backup.Execute", "Backup.Restore" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("users", "المستخدمون والصلاحيات",
                 new string[] { "Users.Manage" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("roles", "إدارة الأدوار",
-                new string[] { "Users.Manage" }), null));
+                new string[] { "Users.Manage", "Roles.Manage" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("settings", "الإعدادات",
                 new string[] { "Settings.Manage" }), null));
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("printsettings", "إعدادات الطباعة والشعارات",
-                new string[] { "Settings.Manage" }), null));
+                new string[] { "Settings.Manage", "Print.Manage" }), null));
             miFile.DropDownItems.Add(new ToolStripSeparator());
             miFile.DropDownItems.Add(StoreAndMenu(new NavItem("logins", "سجل الدخول",
                 new string[] { "Audit.View" }), null));
@@ -134,7 +134,7 @@ namespace HR.UI.UI
             // Tab 2: الموظفين — full employee management.
             ToolStripMenuItem miEmployees = new ToolStripMenuItem("الموظفين");
             miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("employees", "إدارة الموظفين",
-                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
+                new string[] { "Employees.View", "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
             miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("archive", "أرشيف الموظفين",
                 new string[] { "Archive.Execute" }), null));
             miEmployees.DropDownItems.Add(new ToolStripSeparator());
@@ -144,12 +144,12 @@ namespace HR.UI.UI
                 new string[] { "Org.Manage" }), null));
             miEmployees.DropDownItems.Add(new ToolStripSeparator());
             miEmployees.DropDownItems.Add(StoreAndMenu(new NavItem("emphistory", "سجل تاريخ الموظف",
-                new string[] { "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
+                new string[] { "Employees.History", "Employees.Add", "Employees.Edit", "Employees.Archive", "Employees.Delete" }), null));
 
             // Tab 3: الإجازات — requests and approvals management.
             ToolStripMenuItem miLeaves = new ToolStripMenuItem("الإجازات");
             miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("leaves", "طلبات الإجازات",
-                new string[] { "Leaves.Approve", "Leave.Create" }), null));
+                new string[] { "Leaves.Approve", "Leave.Create", "Leaves.Edit" }), null));
             miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("longleaves", "الإجازات طويلة المدة",
                 new string[] { "Leaves.Approve", "Leave.Create" }), null));
             miLeaves.DropDownItems.Add(new ToolStripSeparator());
@@ -171,16 +171,16 @@ namespace HR.UI.UI
             // Tab 5: الحضور والانصراف والإعدادات.
             ToolStripMenuItem miAttendance = new ToolStripMenuItem("الحضور والانصراف والإعدادات");
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attengine", "محرك الحضور",
-                new string[] { "Attendance.Edit" }), null));
+                new string[] { "Attendance.Engine", "Attendance.Edit" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("devices", "الأجهزة والبصمة",
                 new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("fplogs", "سجلات البصمات",
                 new string[] { "Devices.Manage", "Fingerprint.Download", "Fingerprint.ReadUsers" }), null));
             miAttendance.DropDownItems.Add(new ToolStripSeparator());
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("holidays", "العطل الرسمية",
-                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
+                new string[] { "Attendance.Holidays", "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("overtime", "العمل الإضافي",
-                new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
+                new string[] { "Attendance.Overtime", "Overtime.Approve", "Attendance.Edit", "Reports.View" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("adjustments", "تصحيحات الحضور اليدوية",
                 new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attexceptions", "سجل استثناءات الحضور",
@@ -192,11 +192,11 @@ namespace HR.UI.UI
             // Tab 7: إدارة قاعدة البيانات — administrators only (Settings.Manage).
             ToolStripMenuItem miDatabase = new ToolStripMenuItem("إدارة قاعدة البيانات");
             miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbinfo", "معلومات ومراقبة قاعدة البيانات",
-                new string[] { "Settings.Manage" }), null));
+                new string[] { "Settings.Manage", "Database.Manage" }), null));
             miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbtables", "استعراض الجداول",
-                new string[] { "Settings.Manage" }), null));
+                new string[] { "Settings.Manage", "Database.Manage" }), null));
             miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("dbcleanup", "تنظيف السجلات القديمة",
-                new string[] { "Settings.Manage" }), null));
+                new string[] { "Settings.Manage", "Database.Cleanup" }), null));
             miDatabase.DropDownItems.Add(StoreAndMenu(new NavItem("demo", "توليد بيانات تجريبية",
                 new string[] { "Settings.Manage" }), null));
 

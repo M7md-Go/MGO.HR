@@ -48,6 +48,7 @@ namespace HR.BLL
 
         public static int Create(LeaveRequest request)
         {
+            AppContext.RequireAnyPermission(new string[] { "Leave.Create", "Leaves.Approve" });
             ValidateContent(request);
             int leaveTypeId = request.LeaveTypeId ?? 0;
             LeaveType type = LeaveDAL.GetTypeById(leaveTypeId);
@@ -76,6 +77,7 @@ namespace HR.BLL
 
         public static void Update(int leaveId, LeaveRequest request)
         {
+            AppContext.RequireAnyPermission(new string[] { "Leaves.Edit", "Leaves.Approve" });
             ValidateContent(request);
             LeaveRequestView stored = LeaveDAL.GetRequestView(leaveId);
             if (stored == null)
@@ -364,7 +366,7 @@ namespace HR.BLL
         /// </summary>
         public static void SaveEmployeeQuota(int employeeId, int year, int leaveTypeId, int quotaDays)
         {
-            AppContext.RequirePermission("Leaves.Approve");
+            AppContext.RequireAnyPermission(new string[] { "Leaves.Approve", "Leaves.Balances" });
             LeaveType type = LeaveDAL.GetTypeById(leaveTypeId);
             if (type == null)
             {

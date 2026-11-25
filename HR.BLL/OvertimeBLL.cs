@@ -51,7 +51,7 @@ namespace HR.BLL
         /// <summary>Approves one Pending row; screen button stays gated too.</summary>
         public static void Approve(int overtimeId)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Overtime.Approve", "Attendance.Overtime", "Attendance.Edit" });
             OvertimeDAL.SetStatus(overtimeId, StatusApproved,
                 AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId);
             AuditBLL.Log("Overtime.Approve", "Overtime", overtimeId.ToString(), StatusPending, StatusApproved);
@@ -60,7 +60,7 @@ namespace HR.BLL
         /// <summary>Rejects one Pending row.</summary>
         public static void Reject(int overtimeId)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Overtime.Approve", "Attendance.Overtime", "Attendance.Edit" });
             OvertimeDAL.SetStatus(overtimeId, StatusRejected,
                 AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId);
             AuditBLL.Log("Overtime.Reject", "Overtime", overtimeId.ToString(), StatusPending, StatusRejected);

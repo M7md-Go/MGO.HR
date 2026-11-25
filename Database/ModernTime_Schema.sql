@@ -590,6 +590,44 @@ INSERT INTO Permissions (PermissionKey, DescriptionAr)
 VALUES ('Archive.Execute', 'تنفيذ الأرشفة');
 INSERT INTO Permissions (PermissionKey, DescriptionAr)
 VALUES ('Audit.View', 'عرض سجل العمليات');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Leave.Create', 'الإجازات: إنشاء طلبات الإجازات (مصرّف الطلبات دون اعتماد)');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Leaves.Edit', 'الإجازات: تعديل طلبات الإجازات');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Leaves.Balances', 'الإجازات: تعديل الأرصدة السنوية للموظفين (الحصص)');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Mission.Create', 'المأموريات: إنشاء مأموريات دون اعتماد');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Missions.Edit', 'المأموريات: تعديل المأموريات');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Penalties.Delete', 'الجزاءات: حذف الجزاءات');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Attendance.Engine', 'الحضور: تشغيل محرك الحضور وإعادة الحساب');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Attendance.Holidays', 'الحضور: إدارة العطل الرسمية');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Attendance.Overtime', 'الحضور: إدارة العمل الإضافي واعتماده');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Fingerprint.Download', 'البصمات: تنزيل بيانات الحضور من الأجهزة');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Fingerprint.ReadUsers', 'البصمات: قراءة مستخدمي الأجهزة (أرقام الموظفين)');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Employees.View', 'الموظفون: عرض الموظفين والبحث دون تعديل');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Employees.Files', 'الموظفون: إدارة ملفات ومرفقات الموظفين');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Employees.History', 'الموظفون: عرض سجل تاريخ الموظف');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Roles.Manage', 'النظام: إدارة الأدوار ومصفوفة الصلاحيات');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Database.Manage', 'قاعدة البيانات: المراقبة واستعراض الجداول والفهارس');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Database.Cleanup', 'قاعدة البيانات: تنظيف السجلات القديمة (مع نسخة أمان)');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Backup.Restore', 'قاعدة البيانات: استعادة النسخ الاحتياطية');
+INSERT INTO Permissions (PermissionKey, DescriptionAr)
+VALUES ('Print.Manage', 'النظام: إعدادات الطباعة والشعارات');
 INSERT INTO EmployeeStatus (StatusCode, StatusName)
 VALUES ('Permanent', 'دائم');
 INSERT INTO EmployeeStatus (StatusCode, StatusName)

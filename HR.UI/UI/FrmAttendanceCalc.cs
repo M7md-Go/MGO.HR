@@ -151,7 +151,7 @@ namespace HR.UI.UI
             DateTime today = DateTime.Today;
             _dtpFrom.Value = new DateTime(today.Year, today.Month, 1);
             _dtpTo.Value = today;
-            _btnRun.Enabled = AppContext.HasPermission("Attendance.Edit");
+            _btnRun.Enabled = AppContext.HasAnyPermission(new string[] { "Attendance.Engine", "Attendance.Edit" });
             OnBrowseClick();
         }
 

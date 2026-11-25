@@ -41,6 +41,7 @@ namespace HR.BLL
 
         public static int Create(Mission mission)
         {
+            AppContext.RequireAnyPermission(new string[] { "Mission.Create", "Missions.Approve" });
             ValidateContent(mission);
             int missionId = MissionDAL.Insert(mission, CurrentUserId());
             AuditBLL.Log("Mission.Create", "Missions", missionId.ToString(), null,
@@ -55,6 +56,7 @@ namespace HR.BLL
 
         public static void Update(int missionId, Mission mission)
         {
+            AppContext.RequireAnyPermission(new string[] { "Missions.Edit", "Missions.Approve" });
             ValidateContent(mission);
             MissionView stored = MissionDAL.GetById(missionId);
             if (stored == null)

@@ -246,7 +246,7 @@ namespace HR.BLL
         /// <summary>Raw permission keys granted to a role (permission "Users.Manage").</summary>
         public static List<string> GetRoleKeys(int roleId)
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             return UserDAL.GetRolePermissionKeys(roleId);
         }
 
@@ -274,14 +274,14 @@ namespace HR.BLL
         /// <summary>Role list for combos — permission "Users.Manage".</summary>
         public static List<Role> GetRoles()
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             return UserDAL.GetAllRoles();
         }
 
         /// <summary>Creates a non-admin role (unique Arabic-validated name, audit "Roles.Create").</summary>
         public static int CreateRole(string roleName)
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             roleName = (roleName ?? "").Trim();
             ValidateRoleName(roleName);
             if (UserDAL.GetRoleByRoleName(roleName) != null)
@@ -296,7 +296,7 @@ namespace HR.BLL
         /// <summary>Renames a role; the built-in admin role may not be renamed (audit "Roles.Rename").</summary>
         public static void RenameRole(int roleId, string roleName)
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             Role stored = UserDAL.GetRole(roleId);
             if (stored == null)
             {
@@ -324,7 +324,7 @@ namespace HR.BLL
         /// </summary>
         public static void DeleteRole(int roleId)
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             Role stored = UserDAL.GetRole(roleId);
             if (stored == null)
             {
@@ -425,7 +425,7 @@ namespace HR.BLL
         /// </summary>
         public static void SetRolePermission(int roleId, int permissionId, bool granted)
         {
-            AppContext.RequirePermission("Users.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             Role role = UserDAL.GetRole(roleId);
             if (role == null)
             {

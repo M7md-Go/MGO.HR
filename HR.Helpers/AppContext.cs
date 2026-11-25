@@ -174,5 +174,41 @@ namespace HR.Helpers
                 throw new System.Security.SecurityException("ليس لديك الصلاحية لتنفيذ هذه العملية: " + permissionKey);
             }
         }
+
+        /// <summary>
+        /// True when the current session holds ANY of the given permission keys.
+        /// Administrators always pass; an empty list denies (fail-safe).
+        /// </summary>
+        public static bool HasAnyPermission(string[] permissionKeys)
+        {
+            if (permissionKeys == null || permissionKeys.Length == 0)
+            {
+                return false;
+            }
+            if (IsCurrentUserAdmin)
+            {
+                return true;
+            }
+            for (int i = 0; i < permissionKeys.Length; i++)
+            {
+                if (_permissions.Contains(permissionKeys[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Guards a BLL operation that may be unlocked by several permission keys
+        /// (fine-grained matrix: any one of them is sufficient).
+        /// </summary>
+        public static void RequireAnyPermission(string[] permissionKeys)
+        {
+            if (!HasAnyPermission(permissionKeys))
+            {
+                throw new System.Security.SecurityException("ليس لديك الصلاحية لتنفيذ هذه العملية.");
+            }
+        }
     }
 }

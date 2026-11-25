@@ -69,7 +69,12 @@ namespace HR.BLL
 
         private static void RequireAdmin()
         {
-            AppContext.RequirePermission("Settings.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Settings.Manage", "Database.Manage" });
+        }
+
+        private static void RequireCleanup()
+        {
+            AppContext.RequireAnyPermission(new string[] { "Settings.Manage", "Database.Cleanup" });
         }
 
         /// <summary>Snapshot of database facts for the monitoring screen (never throws for a closed DB).</summary>
@@ -191,7 +196,7 @@ namespace HR.BLL
         /// <summary>Names + row counts of the whitelisted maintenance tables (live facts for the dialog).</summary>
         public static List<KeyValuePair<string, long>> CleanupCandidates()
         {
-            RequireAdmin();
+            RequireCleanup();
             List<KeyValuePair<string, long>> rows = new List<KeyValuePair<string, long>>();
             foreach (string table in CleanupTables.Keys)
             {
@@ -208,7 +213,7 @@ namespace HR.BLL
         /// </summary>
         public static Dictionary<string, int> CleanupOlderThan(List<string> tableNames, DateTime beforeDate)
         {
-            RequireAdmin();
+            RequireCleanup();
             if (tableNames == null || tableNames.Count == 0)
             {
                 throw new BusinessException("اختر جدولاً واحداً على الأقل للتنظيف.");

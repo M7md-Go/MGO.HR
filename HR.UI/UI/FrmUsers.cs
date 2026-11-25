@@ -103,7 +103,7 @@ namespace HR.UI.UI
             Controls.Add(toolbar);
             Controls.Add(header);
 
-            bool canManage = AppContext.HasPermission("Users.Manage");
+            bool canManage = AppContext.HasAnyPermission(new string[] { "Users.Manage", "Roles.Manage" });
             _btnAdd.Enabled = canManage;
             _btnEdit.Enabled = canManage;
             _btnToggle.Enabled = canManage;

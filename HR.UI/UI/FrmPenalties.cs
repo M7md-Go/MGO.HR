@@ -140,10 +140,10 @@ namespace HR.UI.UI
             Controls.Add(toolbar);
             Controls.Add(header);
 
-            bool canManage = AppContext.HasPermission("Penalties.Add");
+            bool canManage = AppContext.HasAnyPermission(new string[] { "Penalties.Add", "Penalties.Delete" });
             _btnAdd.Enabled = canManage;
             _btnEdit.Enabled = canManage;
-            _btnDelete.Enabled = canManage;
+            _btnDelete.Enabled = AppContext.HasAnyPermission(new string[] { "Penalties.Delete", "Penalties.Add" });
             Reload();
         }
 

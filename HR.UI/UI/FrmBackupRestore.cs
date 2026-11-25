@@ -133,10 +133,11 @@ namespace HR.UI.UI
             Controls.Add(backupBar);
             Controls.Add(header);
 
-            bool canRun = AppContext.HasPermission("Backup.Execute");
-            _btnBackupNow.Enabled = canRun;
-            btnCompact.Enabled = canRun;
-            RegisterRestoreButton(restoreHost, canRun);
+            bool canRun = AppContext.HasAnyPermission(new string[] { "Backup.Execute", "Backup.Restore" });
+            bool canRestore = AppContext.HasAnyPermission(new string[] { "Backup.Restore", "Backup.Execute" });
+            _btnBackupNow.Enabled = AppContext.HasPermission("Backup.Execute");
+            btnCompact.Enabled = AppContext.HasPermission("Backup.Execute");
+            RegisterRestoreButton(restoreHost, canRestore);
             LoadFiles();
             LoadLog();
         }

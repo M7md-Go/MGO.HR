@@ -27,6 +27,7 @@ namespace HR.BLL
         /// <summary>Registers a copied attachment (relative app path) for the employee.</summary>
         public static void Add(int employeeId, string relativePath, string category, string notes)
         {
+            AppContext.RequireAnyPermission(new string[] { "Employees.Files", "Employees.Edit" });
             if (employeeId <= 0)
             {
                 throw new BusinessException("الموظف غير محدد.");
@@ -64,6 +65,7 @@ namespace HR.BLL
         /// <summary>Removes an attachment record (the physical file stays on disk).</summary>
         public static void Delete(int fileId, int employeeId)
         {
+            AppContext.RequireAnyPermission(new string[] { "Employees.Files", "Employees.Edit" });
             List<EmployeeFile> files = EmployeeFileDAL.ListByEmployee(employeeId);
             EmployeeFile stored = null;
             foreach (EmployeeFile file in files)

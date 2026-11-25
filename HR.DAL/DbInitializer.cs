@@ -156,6 +156,47 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                // Fine-grained permission matrix upgrade: seeds every newly
+                // introduced permission key (idempotent count-checked loop).
+                string[][] newPermissions = new string[][]
+                {
+                    new string[] { "Leave.Create", "الإجازات: إنشاء طلبات الإجازات (مصرّف الطلبات دون اعتماد)" },
+                    new string[] { "Leaves.Edit", "الإجازات: تعديل طلبات الإجازات" },
+                    new string[] { "Leaves.Balances", "الإجازات: تعديل الأرصدة السنوية للموظفين (الحصص)" },
+                    new string[] { "Mission.Create", "المأموريات: إنشاء مأموريات دون اعتماد" },
+                    new string[] { "Missions.Edit", "المأموريات: تعديل المأموريات" },
+                    new string[] { "Penalties.Delete", "الجزاءات: حذف الجزاءات" },
+                    new string[] { "Attendance.Engine", "الحضور: تشغيل محرك الحضور وإعادة الحساب" },
+                    new string[] { "Attendance.Holidays", "الحضور: إدارة العطل الرسمية" },
+                    new string[] { "Attendance.Overtime", "الحضور: إدارة العمل الإضافي واعتماده" },
+                    new string[] { "Fingerprint.Download", "البصمات: تنزيل بيانات الحضور من الأجهزة" },
+                    new string[] { "Fingerprint.ReadUsers", "البصمات: قراءة مستخدمي الأجهزة (أرقام الموظفين)" },
+                    new string[] { "Employees.View", "الموظفون: عرض الموظفين والبحث دون تعديل" },
+                    new string[] { "Employees.Files", "الموظفون: إدارة ملفات ومرفقات الموظفين" },
+                    new string[] { "Employees.History", "الموظفون: عرض سجل تاريخ الموظف" },
+                    new string[] { "Roles.Manage", "النظام: إدارة الأدوار ومصفوفة الصلاحيات" },
+                    new string[] { "Database.Manage", "قاعدة البيانات: المراقبة واستعراض الجداول والفهارس" },
+                    new string[] { "Database.Cleanup", "قاعدة البيانات: تنظيف السجلات القديمة (مع نسخة أمان)" },
+                    new string[] { "Backup.Restore", "قاعدة البيانات: استعادة النسخ الاحتياطية" },
+                    new string[] { "Print.Manage", "النظام: إعدادات الطباعة والشعارات" }
+                };
+                foreach (string[] permEntry in newPermissions)
+                {
+                    OleDbCommand permCount = new OleDbCommand(
+                        "SELECT COUNT(*) FROM Permissions WHERE PermissionKey = ?", connection);
+                    permCount.Parameters.AddWithValue("?", permEntry[0]);
+                    bool missing = Convert.ToInt32(permCount.ExecuteScalar()) == 0;
+                    permCount.Dispose();
+                    if (missing)
+                    {
+                        OleDbCommand permInsert = new OleDbCommand(
+                            "INSERT INTO Permissions (PermissionKey, DescriptionAr) VALUES (?, ?)", connection);
+                        permInsert.Parameters.AddWithValue("?", permEntry[0]);
+                        permInsert.Parameters.AddWithValue("?", permEntry[1]);
+                        permInsert.ExecuteNonQuery();
+                        permInsert.Dispose();
+                    }
+                }
                 if (!TableExists(connection, "EmployeeFiles"))
                 {
                     ExecuteUpgrade(connection,

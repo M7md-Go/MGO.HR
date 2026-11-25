@@ -106,7 +106,7 @@ namespace HR.BLL
         /// <summary>Downloads and stores the device logs; returns exact counters for the UI.</summary>
         public static DownloadSummary DownloadLogs(int deviceId)
         {
-            AppContext.RequirePermission("Devices.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Fingerprint.Download", "Devices.Manage" });
             AcquireDownloadSlot();
             try
             {
@@ -125,7 +125,7 @@ namespace HR.BLL
         /// </summary>
         public static List<DeviceDownloadResult> DownloadAllActive()
         {
-            AppContext.RequirePermission("Devices.Manage");
+            AppContext.RequireAnyPermission(new string[] { "Fingerprint.Download", "Devices.Manage" });
             AcquireDownloadSlot();
             try
             {

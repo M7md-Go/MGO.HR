@@ -27,7 +27,7 @@ namespace HR.BLL
 
         public static int Create(DateTime date, string name, bool isRecurring)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Attendance.Holidays", "Attendance.Edit" });
             Validate(date, name);
             if (!isRecurring && PublicHolidayDAL.DateExists(date, null))
             {
@@ -45,7 +45,7 @@ namespace HR.BLL
 
         public static void Update(int holidayId, DateTime date, string name, bool isRecurring)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Attendance.Holidays", "Attendance.Edit" });
             Validate(date, name);
             PublicHoliday stored = PublicHolidayDAL.GetById(holidayId);
             if (stored == null)
@@ -67,7 +67,7 @@ namespace HR.BLL
 
         public static void Delete(int holidayId)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Attendance.Holidays", "Attendance.Edit" });
             PublicHoliday stored = PublicHolidayDAL.GetById(holidayId);
             if (stored == null)
             {

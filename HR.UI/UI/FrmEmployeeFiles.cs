@@ -26,7 +26,7 @@ namespace HR.UI.UI
         public FrmEmployeeFiles(int employeeId, string employeeName)
         {
             _employeeId = employeeId;
-            _canManage = AppContext.HasPermission("Employees.Edit");
+            _canManage = AppContext.HasAnyPermission(new string[] { "Employees.Edit", "Employees.Files" });
 
             Theme.Apply(this); // dialog under an MDI shell: mirrored RTL layout works here
             Text = "مرفقات الموظف: " + employeeName;

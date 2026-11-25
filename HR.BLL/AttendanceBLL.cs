@@ -44,7 +44,7 @@ namespace HR.BLL
 
         public static RecalcSummary Recalculate(DateTime fromDate, DateTime toDate)
         {
-            AppContext.RequirePermission("Attendance.Edit");
+            AppContext.RequireAnyPermission(new string[] { "Attendance.Engine", "Attendance.Edit" });
             fromDate = fromDate.Date;
             toDate = toDate.Date;
             if (toDate < fromDate)
