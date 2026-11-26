@@ -415,7 +415,7 @@ namespace HR.Services
             report.AddColumn("ApprovedBy", "المُعتمِد", 70);
             report.AddColumn("Reason", "السبب", 150);
 
-            long totalDays = 0;
+            decimal totalDays = 0m;
             foreach (LeaveRequestView row in rows)
             {
                 report.AddRow(row.EmployeeCode, row.EmployeeName, row.TypeName,
@@ -682,7 +682,7 @@ namespace HR.Services
             report.AddColumn("Employees", "عدد الموظفين", 80);
 
             long totalRequests = 0;
-            long totalDays = 0;
+            decimal totalDays = 0m;
             foreach (string type in typeOrder)
             {
                 report.AddRow(type, typeCount[type].ToString(), typeDays[type].ToString(),
