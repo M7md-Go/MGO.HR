@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Text;
 using System.Windows.Forms;
 using HR.BLL;
 using HR.Entities;
@@ -44,6 +45,15 @@ namespace HR.UI.UI
         private Button _btnUnlock;
         private Label _lblState;
         private DataGridView _grid;
+        private ComboBox _cboTemplate;
+        private Button _btnRotate;
+        private Button _btnCoverage;
+        private Button _btnCsv;
+        private Button _btnSubmit;
+        private Button _btnApprove;
+        private Button _btnReject;
+        private Button _btnPrint;
+        private Label _lblApproval;
 
         private MonthData _data;
         private List<DayOfWeek> _restDays;
@@ -55,6 +65,7 @@ namespace HR.UI.UI
         private Dictionary<int, string> _departmentNames;
         private Dictionary<int, string> _sectionNames;
         private bool _loadingGrid;
+        private HashSet<int> _holidayDays;
 
         public FrmMonthlySchedule()
         {
@@ -178,6 +189,57 @@ namespace HR.UI.UI
             _btnUnlock.Height = 30;
             _btnUnlock.Click += delegate { OnUnlockClick(); };
 
+            _cboTemplate = new ComboBox();
+            _cboTemplate.DropDownStyle = ComboBoxStyle.DropDownList;
+            _cboTemplate.Width = 150;
+            foreach (string templateName in ScheduleBLL.RotationTemplateNames())
+            {
+                _cboTemplate.Items.Add(templateName);
+            }
+            if (_cboTemplate.Items.Count > 0)
+            {
+                _cboTemplate.SelectedIndex = 0;
+            }
+
+            _btnRotate = new Button();
+            _btnRotate.Text = "تطبيق نمط دوري";
+            _btnRotate.Height = 30;
+            _btnRotate.Click += delegate { OnRotateClick(); };
+
+            _btnCoverage = new Button();
+            _btnCoverage.Text = "خريطة التغطية";
+            _btnCoverage.Height = 30;
+            _btnCoverage.Click += delegate { OnCoverageClick(); };
+
+            _btnCsv = new Button();
+            _btnCsv.Text = "تصدير CSV";
+            _btnCsv.Height = 30;
+            _btnCsv.Click += delegate { OnCsvClick(); };
+
+            _btnSubmit = new Button();
+            _btnSubmit.Text = "إرسال للاعتماد";
+            _btnSubmit.Height = 30;
+            _btnSubmit.Click += delegate { OnSubmitClick(); };
+
+            _btnApprove = new Button();
+            _btnApprove.Text = "اعتماد نهائي";
+            _btnApprove.Height = 30;
+            _btnApprove.Click += delegate { OnApproveFinalClick(); };
+
+            _btnReject = new Button();
+            _btnReject.Text = "رفض";
+            _btnReject.Height = 30;
+            _btnReject.Click += delegate { OnRejectFinalClick(); };
+
+            _btnPrint = new Button();
+            _btnPrint.Text = "طباعة A3 مع خانات الاعتماد";
+            _btnPrint.Height = 30;
+            _btnPrint.Click += delegate { OnPrintClick(); };
+
+            _lblApproval = new Label();
+            _lblApproval.AutoSize = true;
+            _lblApproval.Margin = new Padding(6, 12, 6, 0);
+
             _lblState = new Label();
             _lblState.AutoSize = true;
             _lblState.Margin = new Padding(6, 12, 6, 0);
@@ -211,6 +273,15 @@ namespace HR.UI.UI
             toolbar.Controls.Add(_btnUndo);
             toolbar.Controls.Add(_btnLock);
             toolbar.Controls.Add(_btnUnlock);
+            toolbar.Controls.Add(_cboTemplate);
+            toolbar.Controls.Add(_btnRotate);
+            toolbar.Controls.Add(_btnCoverage);
+            toolbar.Controls.Add(_btnCsv);
+            toolbar.Controls.Add(_btnSubmit);
+            toolbar.Controls.Add(_btnApprove);
+            toolbar.Controls.Add(_btnReject);
+            toolbar.Controls.Add(_btnPrint);
+            toolbar.Controls.Add(_lblApproval);
             toolbar.Controls.Add(_lblState);
 
             _grid = new DataGridView();
@@ -275,6 +346,13 @@ namespace HR.UI.UI
             _btnUndo.Enabled = canEdit;
             _btnLock.Enabled = canApprove;
             _btnUnlock.Enabled = canUnlock;
+            _btnRotate.Enabled = canEdit;
+            _btnCoverage.Enabled = true;
+            _btnCsv.Enabled = true;
+            _btnSubmit.Enabled = canEdit;
+            _btnApprove.Enabled = canApprove;
+            _btnReject.Enabled = canApprove;
+            _btnPrint.Enabled = true;
         }
 
         // ---------------- filters ----------------
@@ -370,6 +448,32 @@ namespace HR.UI.UI
         {
             _data = ScheduleBLL.LoadMonth(year, month, departmentId, sectionId);
             _restDays = WeekRestDays.Parse(SettingsBLL.GetString(WeekRestDays.SettingKey, WeekRestDays.DefaultDays));
+            _holidayDays = new HashSet<int>();
+            try
+            {
+                DateTime first = new DateTime(year, month, 1);
+                DateTime last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+                foreach (PublicHoliday holiday in PublicHolidayBLL.List(first, last))
+                {
+                    if (holiday.HolidayDate == null)
+                    {
+                        continue;
+                    }
+                    DateTime date = holiday.HolidayDate.Value;
+                    if (date.Year == year && date.Month == month)
+                    {
+                        _holidayDays.Add(date.Day);
+                    }
+                    else if (holiday.IsRecurring == true && date.Month == month && date.Day <= DateTime.DaysInMonth(year, month))
+                    {
+                        _holidayDays.Add(date.Day);
+                    }
+                }
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.LoadMonthData.Holidays");
+            }
             _cells = Clone(_data.Cells);
             _snapshot = Clone(_cells);
             _rowClipboard = null;
@@ -389,6 +493,7 @@ namespace HR.UI.UI
                 _lblState.Text = "مسودة — الشهر " + year + "-" + month + " غير مقفل، التعديل والقفل متاحان حسب الصلاحيات.";
                 _lblState.ForeColor = Theme.StatusOk;
             }
+            UpdateApprovalLabel();
         }
 
         /// <summary>Non-rest shifts sorted by code, used as the autofill default.</summary>
@@ -468,8 +573,20 @@ namespace HR.UI.UI
                     {
                         dayColumn.HeaderCell.Style.BackColor = Theme.StatusWarn;
                     }
+                    else if (_holidayDays != null && _holidayDays.Contains(day))
+                    {
+                        dayColumn.HeaderCell.Style.BackColor = Theme.StatusBad;
+                    }
                     _grid.Columns.Add(dayColumn);
                 }
+
+                DataGridViewTextBoxColumn hoursColumn = new DataGridViewTextBoxColumn();
+                hoursColumn.Name = "hours";
+                hoursColumn.HeaderText = "ساعات الشهر";
+                hoursColumn.ReadOnly = true;
+                hoursColumn.Width = 90;
+                hoursColumn.SortMode = DataGridViewColumnSortMode.NotSortable;
+                _grid.Columns.Add(hoursColumn);
 
                 foreach (Employee employee in _data.Employees)
                 {
@@ -519,11 +636,52 @@ namespace HR.UI.UI
                         int? shiftId = CellValue(employee.EmployeeId, day);
                         row.Cells["day" + day].Value = shiftId != null ? (object)shiftId.Value : null;
                     }
+                    UpdateHoursCell(row, employee.EmployeeId);
                 }
             }
             finally
             {
                 _loadingGrid = false;
+            }
+        }
+
+        /// <summary>Monthly-hours cell: red below target, yellow above, green match;
+        /// plain (no tint) when the target rule is disabled (0).</summary>
+        private void UpdateHoursCell(DataGridViewRow row, int employeeId)
+        {
+            int target = SettingsBLL.GetInt("Sch.TargetMonthlyHours", 0);
+            int daysInMonth = DateTime.DaysInMonth(_data.Year, _data.Month);
+            double total = 0;
+            Dictionary<int, int> days;
+            if (_cells.TryGetValue(employeeId, out days))
+            {
+                foreach (KeyValuePair<int, int> pair in days)
+                {
+                    Shift shift;
+                    if (_data.Shifts.TryGetValue(pair.Value, out shift) && !CategoryRest(shift))
+                    {
+                        total += shift.DurationHrs ?? shift.NormalHours ?? 8f;
+                    }
+                }
+            }
+            DataGridViewCell cell = row.Cells["hours"];
+            cell.Value = total.ToString("0.#") + (target > 0 ? " / " + target : "");
+            if (target <= 0)
+            {
+                cell.Style.BackColor = Color.Empty;
+                return;
+            }
+            if (total < target)
+            {
+                cell.Style.BackColor = Theme.StatusBad;
+            }
+            else if (total > target)
+            {
+                cell.Style.BackColor = Theme.StatusWarn;
+            }
+            else
+            {
+                cell.Style.BackColor = Theme.StatusOk;
             }
         }
 
@@ -556,6 +714,7 @@ namespace HR.UI.UI
                     days.Remove(day);
                 }
             }
+            UpdateHoursCell(_grid.Rows[e.RowIndex], employee.EmployeeId);
         }
 
         // ---------------- helpers ----------------
@@ -687,7 +846,21 @@ namespace HR.UI.UI
             try
             {
                 RequireLoadedMonth();
-                ScheduleBLL.SaveMonth(_data.Year, _data.Month, _data.Employees, _cells, _data.Shifts);
+                List<string> overruns = ScheduleBLL.ContinuousOverruns(
+                    _data.Year, _data.Month, _data.Employees, _cells, _data.Shifts);
+                bool preApproved = false;
+                if (overruns.Count > 0 && AppContext.HasPermission("Schedule.Unlock"))
+                {
+                    StringBuilder message = new StringBuilder(
+                        "يحتوي الجدول على تعارض/عمل متواصل يتجاوز الحد المسموح:\n");
+                    for (int i = 0; i < overruns.Count && i < 5; i++)
+                    {
+                        message.Append("- ").Append(overruns[i]).Append("\n");
+                    }
+                    message.Append("هل تملك موافقة مسبقة على هذا التجاوز؟ (سيُسجَّل في سجل العمليات)");
+                    preApproved = Theme.Confirm(message.ToString());
+                }
+                ScheduleBLL.SaveMonth(_data.Year, _data.Month, _data.Employees, _cells, _data.Shifts, preApproved);
                 _snapshot = Clone(_cells);
                 Theme.ShowInfo("تم حفظ الجدول الشهري " + _data.Year + "-" + _data.Month + ".");
                 LoadCurrentMonth();
@@ -1131,10 +1304,342 @@ namespace HR.UI.UI
             }
         }
 
+        // ---------------- RosterCore additions: rotation / coverage / CSV / approval ----------------
+
+        private void OnRotateClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                Employee employee = SelectedEmployee();
+                if (employee == null)
+                {
+                    Theme.ShowInfo("اختر موظفاً من الجدول أولاً.");
+                    return;
+                }
+                string templateName = _cboTemplate.SelectedItem as string;
+                if (string.IsNullOrWhiteSpace(templateName))
+                {
+                    Theme.ShowInfo("اختر نمطاً دورياً من القائمة أولاً.");
+                    return;
+                }
+                List<KeyValuePair<string, int>> pattern = ScheduleBLL.RotationTemplateSpec(templateName);
+                Dictionary<int, Dictionary<int, int>> generated = ScheduleBLL.ApplyRotation(
+                    _data.Year, _data.Month, pattern, _data.Shifts, DefaultShiftId(), RestShiftId(), _holidayDays);
+                Dictionary<int, int> days = RowCells(employee.EmployeeId);
+                days.Clear();
+                foreach (KeyValuePair<int, int> pair in generated[1])
+                {
+                    days[pair.Key] = pair.Value;
+                }
+                RefreshGridValues();
+                Theme.ShowInfo("طُبِّق النمط الدوري '" + templateName + "' على " + employee.EmployeeCode + " — راجع ثم احفظ.");
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnRotateClick");
+                Theme.ShowError("حدث خطأ أثناء تطبيق النمط الدوري.");
+            }
+        }
+
+        /// <summary>Daily coverage map: workers / rest / unscheduled / total hours (in-memory).</summary>
+        private void OnCoverageClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                int daysInMonth = DateTime.DaysInMonth(_data.Year, _data.Month);
+                DataGridView grid = new DataGridView();
+                Theme.StyleGrid(grid);
+                grid.Dock = DockStyle.Fill;
+                grid.ReadOnly = true;
+                grid.AllowUserToAddRows = false;
+                grid.AllowUserToDeleteRows = false;
+                grid.RowHeadersVisible = false;
+                grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+                grid.Columns.Add("day", "اليوم");
+                grid.Columns.Add("workers", "عاملون");
+                grid.Columns.Add("rest", "راحة");
+                grid.Columns.Add("unscheduled", "غير مجدول");
+                grid.Columns.Add("hours", "إجمالي الساعات");
+                int target = SettingsBLL.GetInt("Sch.TargetMonthlyHours", 0);
+                double monthHours = 0;
+                for (int day = 1; day <= daysInMonth; day++)
+                {
+                    int workers = 0;
+                    int rest = 0;
+                    int unscheduled = _data.Employees.Count;
+                    double dayHours = 0;
+                    foreach (Employee employee in _data.Employees)
+                    {
+                        int? shiftId = CellValue(employee.EmployeeId, day);
+                        Shift shift;
+                        if (shiftId == null || !_data.Shifts.TryGetValue(shiftId.Value, out shift))
+                        {
+                            continue;
+                        }
+                        unscheduled--;
+                        if (CategoryRest(shift))
+                        {
+                            rest++;
+                        }
+                        else
+                        {
+                            workers++;
+                            dayHours += shift.DurationHrs ?? shift.NormalHours ?? 8f;
+                        }
+                    }
+                    monthHours += dayHours;
+                    int rowIndex = grid.Rows.Add();
+                    DataGridViewRow row = grid.Rows[rowIndex];
+                    row.Cells[0].Value = day + " " + WeekdayAr(new DateTime(_data.Year, _data.Month, day).DayOfWeek);
+                    row.Cells[1].Value = workers;
+                    row.Cells[2].Value = rest;
+                    row.Cells[3].Value = unscheduled;
+                    row.Cells[4].Value = dayHours.ToString("0.#");
+                }
+                Form dialog = new Form();
+                Theme.Apply(dialog);
+                dialog.Text = "خريطة التغطية اليومية — " + _data.Year + "-" + _data.Month +
+                    " (إجمالي الشهر " + monthHours.ToString("0.#") + " ساعة" +
+                    (target > 0 ? " — الهدف " + target : "") + ")";
+                dialog.ClientSize = new Size(560, 620);
+                dialog.StartPosition = FormStartPosition.CenterParent;
+                dialog.Controls.Add(grid);
+                dialog.ShowDialog(this);
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnCoverageClick");
+                Theme.ShowError("حدث خطأ أثناء بناء خريطة التغطية.");
+            }
+        }
+
+        /// <summary>CSV export with UTF-8 BOM so Excel opens Arabic correctly.</summary>
+        private void OnCsvClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                using (SaveFileDialog dialog = new SaveFileDialog())
+                {
+                    dialog.Filter = "CSV (*.csv)|*.csv";
+                    dialog.FileName = "Schedule_" + _data.Year + "-" + _data.Month.ToString("00") + ".csv";
+                    if (dialog.ShowDialog(this) != DialogResult.OK)
+                    {
+                        return;
+                    }
+                    int daysInMonth = DateTime.DaysInMonth(_data.Year, _data.Month);
+                    StringBuilder builder = new StringBuilder();
+                    builder.Append("الكود,الاسم");
+                    for (int day = 1; day <= daysInMonth; day++)
+                    {
+                        builder.Append(",").Append(day);
+                    }
+                    builder.Append("\r\n");
+                    foreach (DataGridViewRow row in _grid.Rows)
+                    {
+                        Employee employee = row.Tag as Employee;
+                        if (employee == null)
+                        {
+                            continue;
+                        }
+                        builder.Append(CsvField(employee.EmployeeCode)).Append(",");
+                        builder.Append(CsvField(employee.FullNameAr));
+                        for (int day = 1; day <= daysInMonth; day++)
+                        {
+                            int? shiftId = CellValue(employee.EmployeeId, day);
+                            Shift shift;
+                            string code = shiftId != null && _data.Shifts.TryGetValue(shiftId.Value, out shift)
+                                ? shift.ShiftCode : "";
+                            builder.Append(",").Append(CsvField(code));
+                        }
+                        builder.Append("\r\n");
+                    }
+                    System.IO.File.WriteAllText(dialog.FileName, builder.ToString(), new System.Text.UTF8Encoding(true));
+                    Theme.ShowInfo("تم تصدير الجدول إلى:\n" + dialog.FileName);
+                }
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnCsvClick");
+                Theme.ShowError("حدث خطأ أثناء تصدير CSV.");
+            }
+        }
+
+        private static string CsvField(string value)
+        {
+            if (value == null)
+            {
+                return "";
+            }
+            if (value.IndexOf(',') >= 0 || value.IndexOf('"') >= 0 || value.IndexOf('\n') >= 0)
+            {
+                return "\"" + value.Replace("\"", "\"\"") + "\"";
+            }
+            return value;
+        }
+
+        private void OnSubmitClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                if (!Theme.Confirm("إرسال جدول " + _data.Year + "-" + _data.Month + " للاعتماد؟" +
+                    "\nستُفحص كل قواعد الجدول ولن يكون الإرسال ممكناً إلا لجدول صحيح."))
+                {
+                    return;
+                }
+                ScheduleBLL.SubmitForApproval(_data.Year, _data.Month);
+                Theme.ShowInfo("أُرسل الجدول للاعتماد.");
+                LoadCurrentMonth();
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnSubmitClick");
+                Theme.ShowError("حدث خطأ أثناء إرسال الجدول للاعتماد.");
+            }
+        }
+
+        private void OnApproveFinalClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                if (!Theme.Confirm("اعتماد نهائي لجدول " + _data.Year + "-" + _data.Month + "؟" +
+                    "\nسيُقفل الشهر وتصبح التعديلات اللاحقة عبر طلبات تعديل الورديات فقط."))
+                {
+                    return;
+                }
+                ScheduleBLL.ApproveMonth(_data.Year, _data.Month);
+                Theme.ShowInfo("اعتُمد الجدول وقُفل الشهر.");
+                LoadCurrentMonth();
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnApproveFinalClick");
+                Theme.ShowError("حدث خطأ أثناء اعتماد الجدول.");
+            }
+        }
+
+        private void OnRejectFinalClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                string reason = ReasonDialog.Show(this, "سبب رفض الجدول",
+                    "سبب الرفض (إلزامي — يُعرض على مُعدّ الجدول ويُسجَّل في سجل العمليات):", "رفض الجدول");
+                if (reason == null)
+                {
+                    return;
+                }
+                ScheduleBLL.RejectMonth(_data.Year, _data.Month, reason);
+                Theme.ShowInfo("رُفض الجدول وعاد إلى مسودة.");
+                LoadCurrentMonth();
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnRejectFinalClick");
+                Theme.ShowError("حدث خطأ أثناء رفض الجدول.");
+            }
+        }
+
+        /// <summary>A3 print of the grid with the approval-chain boxes on the last page.</summary>
+        private void OnPrintClick()
+        {
+            try
+            {
+                RequireLoadedMonth();
+                string subtitle = "جدول " + _data.Year + "-" + _data.Month;
+                try
+                {
+                    ScheduleStatusView status = ScheduleBLL.ScheduleStatus(_data.Year, _data.Month);
+                    subtitle += " — الحالة: " + status.StatusAr;
+                    if (!string.IsNullOrEmpty(status.RejectReason))
+                    {
+                        subtitle += " (سبب الرفض: " + status.RejectReason + ")";
+                    }
+                }
+                catch (Exception statusUnexpected)
+                {
+                    Logger.LogError(statusUnexpected, "FrmMonthlySchedule.OnPrintClick.Status");
+                }
+                GridPrintHelper.PrintWithApprovals(_grid, "الجدول الشهري للورديات", subtitle,
+                    new string[] { "مُعدّ الجدول", "مراجعة الموارد البشرية", "مدير الشؤون الإدارية", "المدير العام" });
+            }
+            catch (BusinessException expected)
+            {
+                Theme.ShowError(expected.Message);
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.OnPrintClick");
+                Theme.ShowError("حدث خطأ أثناء تجهيز الطباعة.");
+            }
+        }
+
+        /// <summary>Approval-state label text/color (never breaks the load flow).</summary>
+        private void UpdateApprovalLabel()
+        {
+            try
+            {
+                ScheduleStatusView status = ScheduleBLL.ScheduleStatus(_data.Year, _data.Month);
+                StringBuilder text = new StringBuilder("حالة الاعتماد: " + status.StatusAr);
+                if (!string.IsNullOrEmpty(status.SubmittedByName) && status.SubmittedAt != null)
+                {
+                    text.Append(" — أرسله " + status.SubmittedByName + " في " + status.SubmittedAt.Value.ToString("yyyy-MM-dd HH:mm"));
+                }
+                if (!string.IsNullOrEmpty(status.ApprovedByName) && status.ApprovedAt != null)
+                {
+                    text.Append(" — اعتمده " + status.ApprovedByName + " في " + status.ApprovedAt.Value.ToString("yyyy-MM-dd HH:mm"));
+                }
+                if (!string.IsNullOrEmpty(status.RejectReason))
+                {
+                    text.Append(" — سبب الرفض: " + status.RejectReason);
+                }
+                _lblApproval.Text = text.ToString();
+                if (status.Status == "Approved") { _lblApproval.ForeColor = Theme.StatusOk; }
+                else if (status.Status == "Submitted") { _lblApproval.ForeColor = Theme.StatusWarn; }
+                else if (status.Status == "Rejected") { _lblApproval.ForeColor = Theme.StatusBad; }
+                else { _lblApproval.ForeColor = Theme.HeaderTextColor; }
+            }
+            catch (Exception unexpected)
+            {
+                Logger.LogError(unexpected, "FrmMonthlySchedule.UpdateApprovalLabel");
+                _lblApproval.Text = "";
+            }
+        }
+
         /// <summary>Modal dialog collecting the mandatory unlock reason (rule 22).</summary>
         private class ReasonDialog : Form
         {
             private TextBox _txtReason;
+            private Button _btnOk;
+            private Label _lblReason;
             private bool _confirmed;
 
             private ReasonDialog()
@@ -1148,22 +1653,22 @@ namespace HR.UI.UI
                 MaximizeBox = false;
                 ShowInTaskbar = false;
 
-                Label lblReason = new Label();
-                lblReason.Text = "سبب فتح الشهر المقفل (إلزامي، يُسجَّل في سجل العمليات):";
-                lblReason.Location = new Point(16, 14);
-                lblReason.Size = new Size(408, 22);
+                _lblReason = new Label();
+                _lblReason.Text = "سبب فتح الشهر المقفل (إلزامي، يُسجَّل في سجل العمليات):";
+                _lblReason.Location = new Point(16, 14);
+                _lblReason.Size = new Size(408, 22);
 
                 _txtReason = new TextBox();
                 _txtReason.Location = new Point(16, 44);
                 _txtReason.Size = new Size(408, 26);
                 _txtReason.MaxLength = 300;
 
-                Button btnOk = new Button();
-                btnOk.Text = "فتح الشهر";
-                btnOk.Location = new Point(294, 90);
-                btnOk.Size = new Size(130, 32);
-                btnOk.DialogResult = DialogResult.None;
-                btnOk.Click += delegate
+                _btnOk = new Button();
+                _btnOk.Text = "فتح الشهر";
+                _btnOk.Location = new Point(294, 90);
+                _btnOk.Size = new Size(130, 32);
+                _btnOk.DialogResult = DialogResult.None;
+                _btnOk.Click += delegate
                 {
                     if (string.IsNullOrWhiteSpace(_txtReason.Text))
                     {
@@ -1181,19 +1686,29 @@ namespace HR.UI.UI
                 btnCancel.DialogResult = DialogResult.Cancel;
                 btnCancel.Click += delegate { Close(); };
 
-                Controls.Add(lblReason);
+                Controls.Add(_lblReason);
                 Controls.Add(_txtReason);
-                Controls.Add(btnOk);
+                Controls.Add(_btnOk);
                 Controls.Add(btnCancel);
-                AcceptButton = btnOk;
+                AcceptButton = _btnOk;
                 CancelButton = btnCancel;
             }
 
             /// <summary>Returns the trimmed reason, or null when cancelled.</summary>
             public static string Show(IWin32Window owner)
             {
+                return Show(owner, "سبب فتح الشهر المقفل",
+                    "سبب فتح الشهر المقفل (إلزامي، يُسجَّل في سجل العمليات):", "فتح الشهر");
+            }
+
+            /// <summary>Generalized mandatory-reason dialog (unlock / schedule rejection).</summary>
+            public static string Show(IWin32Window owner, string title, string labelText, string okText)
+            {
                 using (ReasonDialog dialog = new ReasonDialog())
                 {
+                    dialog.Text = title;
+                    dialog._lblReason.Text = labelText;
+                    dialog._btnOk.Text = okText;
                     dialog.ShowDialog(owner);
                     if (!dialog._confirmed)
                     {

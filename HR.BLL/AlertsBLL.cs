@@ -21,6 +21,7 @@ namespace HR.BLL
             CollectPendingLeaves(items);
             CollectPendingMissions(items);
             CollectStaleDevices(items);
+            CollectPendingScheduleChanges(items);
             return items;
         }
 
@@ -105,6 +106,24 @@ namespace HR.BLL
                     items.Add(Make("أجهزة البصمة",
                         stale + " أجهزة بصمة لم تتم مزامنتها منذ " + staleDays + " يوم أو أكثر (أولها: " + firstName + ")",
                         "bad", "devices"));
+                }
+            }
+            catch (Exception)
+            {
+                // alerts must never break the shell; a failing source is skipped
+            }
+        }
+
+        private static void CollectPendingScheduleChanges(List<AlertItem> items)
+        {
+            try
+            {
+                List<ScheduleChangeRequest> pending = ScheduleChangeBLL.List(ScheduleChangeBLL.StatusPending);
+                if (pending != null && pending.Count > 0)
+                {
+                    items.Add(Make("طلبات تعديل الورديات",
+                        "لديك " + pending.Count + " طلب تعديل ورديات بانتظار الاعتماد",
+                        pending.Count > 5 ? "bad" : "warn", "schedchanges"));
                 }
             }
             catch (Exception)

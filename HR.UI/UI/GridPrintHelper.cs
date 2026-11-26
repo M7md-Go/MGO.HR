@@ -34,6 +34,20 @@ namespace HR.UI.UI
         /// <summary>Opens the print preview with an explicit profile (live preview from FrmPrintSettings).</summary>
         public static void Print(DataGridView grid, string title, string subtitle, PrintProfile profile)
         {
+            PrintCore(grid, title, subtitle, profile, null);
+        }
+
+        /// <summary>Prints the schedule with approval-chain boxes (e.g. preparer /
+        /// HR review / admin manager / general manager) drawn on the last page.</summary>
+        public static void PrintWithApprovals(DataGridView grid, string title, string subtitle,
+            string[] approvalBoxLabels)
+        {
+            PrintCore(grid, title, subtitle, PrintOptions.Snapshot(), approvalBoxLabels);
+        }
+
+        private static void PrintCore(DataGridView grid, string title, string subtitle,
+            PrintProfile profile, string[] approvalBoxes)
+        {
             if (grid == null || grid.Columns.Count == 0 || grid.RowCount == 0)
             {
                 Theme.ShowInfo("\u0644\u0627 \u062a\u0648\u062c\u062f \u0628\u064a\u0627\u0646\u0627\u062a \u0644\u0637\u0628\u0627\u0639\u062a\u0647\u0627.");
@@ -80,6 +94,7 @@ namespace HR.UI.UI
             state.Title = title;
             state.Subtitle = subtitle != null ? subtitle : string.Empty;
             state.Profile = profile;
+            state.ApprovalBoxes = approvalBoxes;
 
             using (PrintDocument document = new PrintDocument())
             {
@@ -120,6 +135,7 @@ namespace HR.UI.UI
             public float RowHeight;
             public float BandHeight;
             public bool LaidOut;
+            public string[] ApprovalBoxes;
         }
 
         /// <summary>Prints one page; returns true when more rows remain.</summary>
@@ -247,7 +263,27 @@ namespace HR.UI.UI
             }
 
             args.HasMorePages = state.NextRow < state.Rows.Count;
-            if (!args.HasMorePages && state.Profile.ShowSignature)
+            if (!args.HasMorePages && state.ApprovalBoxes != null && state.ApprovalBoxes.Length > 0)
+            {
+                // approval-chain boxes across the bottom of the last page (RTL: first label at the right)
+                using (SolidBrush boxFore = new SolidBrush(Color.FromArgb(60, 70, 85)))
+                using (Pen boxLine = new Pen(Color.FromArgb(140, 150, 165)))
+                {
+                    StringFormat boxFormat = new StringFormat();
+                    boxFormat.Alignment = StringAlignment.Center;
+                    boxFormat.FormatFlags = StringFormatFlags.DirectionRightToLeft;
+                    int boxCount = state.ApprovalBoxes.Length;
+                    float boxWidth = bounds.Width / boxCount;
+                    for (int i = 0; i < boxCount; i++)
+                    {
+                        float x = bounds.Right - (i + 1) * boxWidth;
+                        graphics.DrawString(state.ApprovalBoxes[i] + ":", state.FooterFont, boxFore,
+                            new RectangleF(x, bounds.Bottom - 48f, boxWidth, 14f), boxFormat);
+                        graphics.DrawLine(boxLine, x + 8f, bounds.Bottom - 28f, x + boxWidth - 8f, bounds.Bottom - 28f);
+                    }
+                }
+            }
+            if (!args.HasMorePages && state.Profile.ShowSignature && state.ApprovalBoxes == null)
             {
                 // signature area on the last page only, just above the footer
                 using (SolidBrush sigFore = new SolidBrush(Color.FromArgb(60, 70, 85)))

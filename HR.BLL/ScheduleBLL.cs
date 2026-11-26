@@ -102,6 +102,19 @@ namespace HR.BLL
         public static void SaveMonth(int year, int month, List<Employee> employees,
             Dictionary<int, Dictionary<int, int>> cells, Dictionary<int, Shift> shifts)
         {
+            SaveMonth(year, month, employees, cells, shifts, false);
+        }
+
+        /// <summary>
+        /// Full save with the pre-approved continuous-overrun door (RosterCore
+        /// lesson): when the grid contains a continuous-work stretch beyond
+        /// Sch.MaxContinuousHours, the UI may re-save with allowContinuousOverrun
+        /// only for holders of "Schedule.Unlock"; the bypass is audit-flagged.
+        /// </summary>
+        public static void SaveMonth(int year, int month, List<Employee> employees,
+            Dictionary<int, Dictionary<int, int>> cells, Dictionary<int, Shift> shifts,
+            bool allowContinuousOverrun)
+        {
             AppContext.RequirePermission("Schedule.Edit");
             ValidatePeriod(year, month);
             if (cells == null || cells.Count == 0)
@@ -113,7 +126,7 @@ namespace HR.BLL
             {
                 throw new BusinessException("الشهر " + year + "-" + month + " مقفل. لا يمكن التعديل إلا بواسطة مسؤول النظام، وتُسجَّل العملية في سجل العمليات.");
             }
-            ValidateCells(year, month, employees, cells, shifts);
+            ValidateCells(year, month, employees, cells, shifts, allowContinuousOverrun);
 
             int? userId = AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId;
             MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
@@ -136,7 +149,8 @@ namespace HR.BLL
             }
 
             string newSummary = "Year=" + year + ", Month=" + month + ", Employees=" + savedEmployees +
-                                ", Rows=" + CountCells(cells) + (locked ? ", LockedEdit=Admin" : "");
+                                ", Rows=" + CountCells(cells) + (locked ? ", LockedEdit=Admin" : "") +
+                                (allowContinuousOverrun ? ", ContinuousOverrun=PreApproved" : "");
             AuditBLL.Log(locked ? "Schedule.SaveLocked" : "Schedule.Save", "ScheduleDetails",
                 year + "-" + month, null, newSummary);
         }
@@ -172,6 +186,14 @@ namespace HR.BLL
         public static void ValidateCells(int year, int month, List<Employee> employees,
             Dictionary<int, Dictionary<int, int>> cells, Dictionary<int, Shift> shifts)
         {
+            ValidateCells(year, month, employees, cells, shifts, false);
+        }
+
+        /// <summary>Full validation with the optional pre-approved continuous-overrun bypass.</summary>
+        public static void ValidateCells(int year, int month, List<Employee> employees,
+            Dictionary<int, Dictionary<int, int>> cells, Dictionary<int, Shift> shifts,
+            bool allowContinuousOverrun)
+        {
             ValidatePeriod(year, month);
             int daysInMonth = DateTime.DaysInMonth(year, month);
             Dictionary<int, Employee> byId = new Dictionary<int, Employee>();
@@ -190,6 +212,8 @@ namespace HR.BLL
             int minWeeklyHours = SettingsBLL.GetInt("Sch.MinWeeklyHours", 36);
             int maxWeeklyHours = SettingsBLL.GetInt("Sch.MaxWeeklyHours", 42);
             int maxContinuousHours = SettingsBLL.GetInt("Sch.MaxContinuousHours", 24);
+            int maxConsecutiveDays = SettingsBLL.GetInt("Sch.MaxConsecutiveWorkDays", 6);
+            int targetMonthlyHours = SettingsBLL.GetInt("Sch.TargetMonthlyHours", 0);
 
             foreach (KeyValuePair<int, Dictionary<int, int>> employeePair in cells)
             {
@@ -262,12 +286,13 @@ namespace HR.BLL
                     int endTOD = (startAMin.Value + durationAMin) % 1440;
                     long endAbsolute = (day + (crosses ? 1 : 0)) * 1440L + endTOD;
                     long startAbsolute = (day + 1) * 1440L + startBMin.Value;
-                    if (endAbsolute > startAbsolute)
+                    if (endAbsolute > startAbsolute && !allowContinuousOverrun)
                     {
                         throw new BusinessException("تعارض تعاقب يومَي " + day + "-" + (day + 1) + who +
                             ": وردية اليوم " + day + " لا تنتهي قبل بداية وردية اليوم " + (day + 1) + ".");
                     }
-                    if (endAbsolute == startAbsolute && durationAMin + durationBMin > maxContinuousHours * 60)
+                    if (endAbsolute == startAbsolute && durationAMin + durationBMin > maxContinuousHours * 60
+                        && !allowContinuousOverrun)
                     {
                         throw new BusinessException("وردية " + day + "-" + (day + 1) + who + ": عمل متواصل يتجاوز " +
                             maxContinuousHours + " ساعة — ممنوع (قاعدة 8-2).");
@@ -308,6 +333,55 @@ namespace HR.BLL
                         throw new BusinessException("الأسبوع " + day + " إلى " + (day + 6) + who + ": إجمالي " +
                             weekHours.ToString("0.#") + " ساعة خارج الحدود الأسبوعية (" + minWeeklyHours + "–" +
                             maxWeeklyHours + ") — قاعدتا 8-4 و8-5.");
+                    }
+                }
+
+                // Rule (RosterCore): no more than Sch.MaxConsecutiveWorkDays
+                // consecutive scheduled work days inside the month.
+                if (maxConsecutiveDays > 0)
+                {
+                    int consecutive = 0;
+                    for (int day = 1; day <= daysInMonth; day++)
+                    {
+                        int dayShiftId;
+                        Shift dayShift;
+                        if (days.TryGetValue(day, out dayShiftId) && shifts.TryGetValue(dayShiftId, out dayShift)
+                            && !IsRest(dayShift))
+                        {
+                            consecutive++;
+                            if (consecutive > maxConsecutiveDays)
+                            {
+                                throw new BusinessException("موظف" + who + ": " + maxConsecutiveDays
+                                    + " أيام عمل متتابعة تنتهي في يوم " + day
+                                    + " — الحد المسموح لأقصى " + maxConsecutiveDays
+                                    + " أيام عمل متتابعة (Sch.MaxConsecutiveWorkDays).");
+                            }
+                        }
+                        else
+                        {
+                            consecutive = 0;
+                        }
+                    }
+                }
+
+                // Rule (RosterCore): monthly target hours (0 = disabled via Sch.TargetMonthlyHours).
+                if (targetMonthlyHours > 0)
+                {
+                    double monthHours = 0;
+                    foreach (KeyValuePair<int, int> monthPair in days)
+                    {
+                        Shift monthShift;
+                        if (shifts.TryGetValue(monthPair.Value, out monthShift) && !IsRest(monthShift)
+                            && monthShift.DurationHrs != null)
+                        {
+                            monthHours += monthShift.DurationHrs.Value;
+                        }
+                    }
+                    if (monthHours < targetMonthlyHours)
+                    {
+                        throw new BusinessException("ساعات الشهر" + who + ": " + monthHours.ToString("0.#")
+                            + " ساعة أقل من الهدف الشهري (" + targetMonthlyHours
+                            + " ساعة) — لا يمكن الحفظ (قاعدة الهدف الشهري).");
                     }
                 }
             }
@@ -363,6 +437,334 @@ namespace HR.BLL
                 total += pair.Value.Count;
             }
             return total;
+        }
+
+        // ---------------- approval chain (RosterCore lesson) ----------------
+
+        /// <summary>Submits the month's schedule for approval ("Schedule.Edit").
+        /// Runs the FULL validation grid first — invalid schedules cannot be submitted.</summary>
+        public static void SubmitForApproval(int year, int month)
+        {
+            AppContext.RequirePermission("Schedule.Edit");
+            ValidatePeriod(year, month);
+            MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
+            if (schedule == null)
+            {
+                throw new BusinessException("لا يوجد جدول لهذا الشهر — احفظه أولاً ثم أرسله للاعتماد.");
+            }
+            string status = schedule.Status == null ? "Draft" : schedule.Status;
+            if (status == "Submitted")
+            {
+                throw new BusinessException("الجدول مُرسل بالفعل للاعتماد — بانتظار قرار المُعتمِد.");
+            }
+            if (status == "Approved")
+            {
+                throw new BusinessException("الجدول معتمد بالفعل — استخدم طلب تعديل الورديات بعد الاعتماد.");
+            }
+            MonthData monthData = LoadMonth(year, month, null, null);
+            if (CountCells(monthData.Cells) == 0)
+            {
+                throw new BusinessException("الجدول فارغ — لا يمكن إرسال جدول بلا ورديات للاعتماد.");
+            }
+            ValidateCells(year, month, monthData.Employees, monthData.Cells, monthData.Shifts, false);
+            int? userId = AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId;
+            ScheduleDAL.SetScheduleSubmitted(schedule.ScheduleId, userId);
+            ScheduleDAL.InsertApproval(schedule.ScheduleId, "Submitted", userId, null);
+            AuditBLL.Log("Schedule.Submit", "MonthlySchedules", year + "-" + month, status, "Submitted");
+        }
+
+        /// <summary>Final approval ("Schedule.Approve"); locks the month; audited.</summary>
+        public static void ApproveMonth(int year, int month)
+        {
+            AppContext.RequirePermission("Schedule.Approve");
+            ValidatePeriod(year, month);
+            MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
+            if (schedule == null)
+            {
+                throw new BusinessException("لا يوجد جدول لهذا الشهر — لا يمكن اعتماد جدول غير محفوظ.");
+            }
+            string status = schedule.Status == null ? "Draft" : schedule.Status;
+            if (status != "Submitted")
+            {
+                throw new BusinessException("لا يمكن الاعتماد إلا لجدول مُرسل للاعتماد (الحالة الحالية: " + StatusAr(status) + ").");
+            }
+            int? userId = AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId;
+            ScheduleDAL.SetScheduleApproved(schedule.ScheduleId, userId);
+            ScheduleDAL.InsertApproval(schedule.ScheduleId, "Approved", userId, null);
+            ScheduleDAL.SetLock(year, month, true, userId, null);
+            AuditBLL.Log("Schedule.Approve", "MonthlySchedules", year + "-" + month, status, "Approved+Locked");
+        }
+
+        /// <summary>Rejection ("Schedule.Approve") returns the schedule to Draft with a
+        /// MANDATORY reason, unlocks the month and is fully audited.</summary>
+        public static void RejectMonth(int year, int month, string reason)
+        {
+            AppContext.RequirePermission("Schedule.Approve");
+            ValidatePeriod(year, month);
+            if (string.IsNullOrWhiteSpace(reason))
+            {
+                throw new BusinessException("سبب الرفض إلزامي (يُعرض على مُعدّ الجدول ويُسجَّل في سجل العمليات).");
+            }
+            MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
+            if (schedule == null)
+            {
+                throw new BusinessException("لا يوجد جدول لهذا الشهر.");
+            }
+            string status = schedule.Status == null ? "Draft" : schedule.Status;
+            if (status != "Submitted")
+            {
+                throw new BusinessException("لا يمكن الرفض إلا لجدول مُرسل للاعتماد (الحالة الحالية: " + StatusAr(status) + ").");
+            }
+            reason = reason.Trim();
+            int? userId = AppContext.CurrentUser == null ? (int?)null : AppContext.CurrentUser.UserId;
+            ScheduleDAL.SetScheduleRejected(schedule.ScheduleId, userId, reason);
+            ScheduleDAL.InsertApproval(schedule.ScheduleId, "Rejected", userId, reason);
+            ScheduleDAL.SetLock(year, month, false, userId, reason);
+            AuditBLL.Log("Schedule.Reject", "MonthlySchedules", year + "-" + month, status, "Rejected, Reason=" + reason);
+        }
+
+        /// <summary>Reads the approval state of a month for UI display (no permission gate).</summary>
+        public static ScheduleStatusView ScheduleStatus(int year, int month)
+        {
+            ValidatePeriod(year, month);
+            ScheduleStatusView view = new ScheduleStatusView();
+            MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
+            MonthlyShiftLock lockRow = ScheduleDAL.GetLock(year, month);
+            view.IsLocked = lockRow != null && lockRow.IsLocked.GetValueOrDefault();
+            view.Status = schedule == null ? "Draft" : (schedule.Status == null ? "Draft" : schedule.Status);
+            if (view.Status == "Submitted") { view.StatusAr = "مُرسل للاعتماد"; }
+            else if (view.Status == "Approved") { view.StatusAr = "معتمد"; }
+            else if (view.Status == "Rejected") { view.StatusAr = "مرفوض — بانتظار التعديل"; }
+            else { view.StatusAr = "مسودة"; }
+            view.SubmittedAt = schedule == null ? null : schedule.SubmittedAt;
+            view.SubmittedByName = UserName(schedule == null ? null : schedule.SubmittedBy);
+            view.ApprovedAt = schedule == null ? null : schedule.ApprovedAt;
+            view.ApprovedByName = UserName(schedule == null ? null : schedule.ApprovedBy);
+            view.RejectReason = schedule == null ? null : schedule.RejectReason;
+            return view;
+        }
+
+        /// <summary>Resolves a user id to a display name (falls back to the raw id text).</summary>
+        private static string UserName(int? userId)
+        {
+            if (userId == null) { return null; }
+            List<UserView> users = UserBLL.ListUsers();
+            foreach (UserView user in users)
+            {
+                if (user.UserId == userId.Value)
+                {
+                    return string.IsNullOrWhiteSpace(user.FullName) ? user.Username : user.FullName;
+                }
+            }
+            return "مستخدم #" + userId.Value;
+        }
+
+        /// <summary>Arabic label for a raw schedule status value.</summary>
+        private static string StatusAr(string status)
+        {
+            if (status == "Submitted") { return "مُرسل للاعتماد"; }
+            if (status == "Approved") { return "معتمد"; }
+            if (status == "Rejected") { return "مرفوض"; }
+            return "مسودة";
+        }
+
+        // ---------------- rotation templates (RosterCore lesson) ----------------
+
+        /// <summary>Names of the rotation templates stored in Sch.RotationTemplates
+        /// (format: name=CODE:count,CODE:count;name2=... ; DEF=default fill shift, REST=rest).</summary>
+        public static List<string> RotationTemplateNames()
+        {
+            List<string> names = new List<string>();
+            string raw = SettingsBLL.GetString("Sch.RotationTemplates", "");
+            string[] templates = raw.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string template in templates)
+            {
+                string trimmed = template.Trim();
+                int eq = trimmed.IndexOf('=');
+                if (eq > 0)
+                {
+                    names.Add(trimmed.Substring(0, eq).Trim());
+                }
+            }
+            return names;
+        }
+
+        /// <summary>Parses one rotation template into its (shiftCode, dayCount) pattern.</summary>
+        public static List<KeyValuePair<string, int>> RotationTemplateSpec(string templateName)
+        {
+            string raw = SettingsBLL.GetString("Sch.RotationTemplates", "");
+            string[] templates = raw.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string template in templates)
+            {
+                string trimmed = template.Trim();
+                int eq = trimmed.IndexOf('=');
+                if (eq <= 0)
+                {
+                    continue;
+                }
+                if (!string.Equals(trimmed.Substring(0, eq).Trim(), templateName, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                List<KeyValuePair<string, int>> pattern = new List<KeyValuePair<string, int>>();
+                string[] parts = trimmed.Substring(eq + 1).Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (string part in parts)
+                {
+                    string item = part.Trim();
+                    int colon = item.IndexOf(':');
+                    if (colon <= 0)
+                    {
+                        continue;
+                    }
+                    string code = item.Substring(0, colon).Trim().ToUpperInvariant();
+                    int count;
+                    if (!int.TryParse(item.Substring(colon + 1).Trim(), out count) || count <= 0)
+                    {
+                        throw new BusinessException("قالب دوري غير صالح: العدد بعد النقطتين يجب أن يكون رقماً أكبر من صفر (" + item + ").");
+                    }
+                    pattern.Add(new KeyValuePair<string, int>(code, count));
+                }
+                if (pattern.Count == 0)
+                {
+                    throw new BusinessException("قالب دوري فارغ أو غير صالح: " + templateName);
+                }
+                return pattern;
+            }
+            throw new BusinessException("لا يوجد قالب دوري بهذا الاسم: " + templateName);
+        }
+
+        /// <summary>Builds a one-employee full-month cell map by cycling a rotation
+        /// pattern from day 1. Work slots fall back to the rest shift on public
+        /// holidays; DEF = default fill shift, REST = rest shift, other codes
+        /// resolve through the passed shift dictionary by ShiftCode.</summary>
+        public static Dictionary<int, Dictionary<int, int>> ApplyRotation(int year, int month,
+            List<KeyValuePair<string, int>> pattern, Dictionary<int, Shift> shifts,
+            int? defaultShiftId, int? restShiftId, HashSet<int> holidayDays)
+        {
+            if (pattern == null || pattern.Count == 0)
+            {
+                throw new BusinessException("نمط الدوران فارغ.");
+            }
+            if (defaultShiftId == null)
+            {
+                throw new BusinessException("لا يمكن تطبيق النمط: لا توجد وردية ملء افتراضية — حدد وردية العمل أولاً.");
+            }
+            if (restShiftId == null)
+            {
+                throw new BusinessException("لا يمكن تطبيق النمط: لا توجد وردية راحة (كود FR) — أضفها من شاشة الورديات.");
+            }
+            List<int> patternIds = new List<int>();
+            foreach (KeyValuePair<string, int> pair in pattern)
+            {
+                if (pair.Key == "DEF")
+                {
+                    patternIds.Add(defaultShiftId.Value);
+                    continue;
+                }
+                if (pair.Key == "REST")
+                {
+                    patternIds.Add(restShiftId.Value);
+                    continue;
+                }
+                bool found = false;
+                foreach (Shift shift in shifts.Values)
+                {
+                    if (string.Equals(shift.ShiftCode, pair.Key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        patternIds.Add(shift.ShiftId);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    throw new BusinessException("القالب يشير إلى كود وردية غير موجود: " + pair.Key);
+                }
+            }
+            int daysInMonth = DateTime.DaysInMonth(year, month);
+            int cursor = 0;
+            Dictionary<int, Dictionary<int, int>> cells = new Dictionary<int, Dictionary<int, int>>();
+            Dictionary<int, int> row = new Dictionary<int, int>();
+            for (int day = 1; day <= daysInMonth; day++)
+            {
+                int shiftId = patternIds[cursor % patternIds.Count];
+                cursor++;
+                if (holidayDays != null && holidayDays.Contains(day))
+                {
+                    Shift chosen;
+                    if (shifts.TryGetValue(shiftId, out chosen) && !IsRest(chosen))
+                    {
+                        shiftId = restShiftId.Value;
+                    }
+                }
+                row[day] = shiftId;
+            }
+            cells[1] = row;
+            return cells;
+        }
+
+        /// <summary>Pre-scan for the UI: lists adjacent-day conflicts (overlap or
+        /// continuous work beyond Sch.MaxContinuousHours) WITHOUT throwing, so the
+        /// caller can ask for a pre-approval confirmation before saving (RosterCore lesson).</summary>
+        public static List<string> ContinuousOverruns(int year, int month, List<Employee> employees,
+            Dictionary<int, Dictionary<int, int>> cells, Dictionary<int, Shift> shifts)
+        {
+            List<string> overruns = new List<string>();
+            if (cells == null || cells.Count == 0 || shifts == null || shifts.Count == 0)
+            {
+                return overruns;
+            }
+            int maxContinuousHours = SettingsBLL.GetInt("Sch.MaxContinuousHours", 24);
+            int daysInMonth = DateTime.DaysInMonth(year, month);
+            foreach (Employee employee in employees)
+            {
+                if (!cells.ContainsKey(employee.EmployeeId))
+                {
+                    continue;
+                }
+                Dictionary<int, int> days = cells[employee.EmployeeId];
+                string who = " للموظف '" + (employee.EmployeeCode ?? employee.EmployeeId.ToString()) + "'";
+                for (int day = 1; day < daysInMonth; day++)
+                {
+                    int shiftAId;
+                    int shiftBId;
+                    if (!days.TryGetValue(day, out shiftAId) || !days.TryGetValue(day + 1, out shiftBId))
+                    {
+                        continue;
+                    }
+                    Shift shiftA;
+                    Shift shiftB;
+                    if (!shifts.TryGetValue(shiftAId, out shiftA) || !shifts.TryGetValue(shiftBId, out shiftB))
+                    {
+                        continue;
+                    }
+                    if (IsRest(shiftA) || IsRest(shiftB) || shiftA.DurationHrs == null || shiftB.DurationHrs == null)
+                    {
+                        continue;
+                    }
+                    int? startAMin = TimeHelper.ParseMinutes(shiftA.StartTime);
+                    int? startBMin = TimeHelper.ParseMinutes(shiftB.StartTime);
+                    if (startAMin == null || startBMin == null)
+                    {
+                        continue;
+                    }
+                    int durationAMin = Convert.ToInt32(Math.Round(shiftA.DurationHrs.Value * 60f));
+                    int durationBMin = Convert.ToInt32(Math.Round(shiftB.DurationHrs.Value * 60f));
+                    bool crosses = startAMin.Value + durationAMin > 1440;
+                    int endTOD = (startAMin.Value + durationAMin) % 1440;
+                    long endAbsolute = (day + (crosses ? 1 : 0)) * 1440L + endTOD;
+                    long startAbsolute = (day + 1) * 1440L + startBMin.Value;
+                    if (endAbsolute > startAbsolute)
+                    {
+                        overruns.Add("تعارض تعاقب يومَي " + day + "-" + (day + 1) + who);
+                    }
+                    else if (endAbsolute == startAbsolute && durationAMin + durationBMin > maxContinuousHours * 60)
+                    {
+                        overruns.Add("عمل متواصل يتجاوز " + maxContinuousHours + " ساعة في يومَي " + day + "-" + (day + 1) + who);
+                    }
+                }
+            }
+            return overruns;
         }
 
         private static void ValidatePeriod(int year, int month)

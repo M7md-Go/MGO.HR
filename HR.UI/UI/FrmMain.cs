@@ -174,6 +174,10 @@ namespace HR.UI.UI
             miSchedule.DropDownItems.Add(StoreAndMenu(new NavItem("empschedule", "تعديل جدول موظف لأيام محددة",
                 new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }), null));
 
+            // Order 45f44386 (RosterCore lessons): post-approval shift-change requests.
+            miSchedule.DropDownItems.Add(StoreAndMenu(new NavItem("schedchanges", "طلبات تعديل الورديات (بعد الاعتماد)",
+                new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }), null));
+
             // Tab 5: الحضور والانصراف والإعدادات.
             ToolStripMenuItem miAttendance = new ToolStripMenuItem("الحضور والانصراف والإعدادات");
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attengine", "محرك الحضور",
@@ -422,6 +426,7 @@ namespace HR.UI.UI
                 case "leavetypes": form = new FrmLeaveTypes(); break;
                 case "balanceentry": form = new FrmBalanceEntry(); break;
                 case "empschedule": form = new FrmEmployeeSchedule(); break;
+                case "schedchanges": form = new FrmScheduleChanges(); break;
                 case "longleavetypes": form = new FrmLongLeaveTypes(); break;
                 case "holidays": form = new FrmPublicHolidays(); break;
                 case "overtime": form = new FrmOvertime(); break;

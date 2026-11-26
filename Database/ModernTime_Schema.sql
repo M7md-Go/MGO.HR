@@ -129,6 +129,9 @@ CreatedAt  DATETIME,
 ApprovedBy LONG,
 ApprovedAt DATETIME,
 LockedAt   DATETIME,
+SubmittedBy LONG,
+SubmittedAt DATETIME,
+RejectReason LONGCHAR,
 CONSTRAINT UQ_Sched UNIQUE (YearVal, MonthVal)
 );
 
@@ -732,6 +735,40 @@ Notes        LONGCHAR,
 CreatedAt    DATETIME,
 CreatedBy    LONG
 );
+
+-- RosterCore lessons (order 45f44386): approval ledger + post-approval shift changes
+CREATE TABLE ScheduleApprovals (
+ApprovalId AUTOINCREMENT PRIMARY KEY,
+ScheduleId LONG NOT NULL,
+Stage      VARCHAR(12) NOT NULL,
+UserId     LONG,
+Reason     LONGCHAR,
+CreatedAt  DATETIME
+);
+
+CREATE TABLE ScheduleChangeRequests (
+RequestId  AUTOINCREMENT PRIMARY KEY,
+YearVal    LONG NOT NULL,
+MonthVal   LONG NOT NULL,
+Status     VARCHAR(12),
+Reason     LONGCHAR,
+RequestedBy LONG,
+DecidedBy  LONG,
+DecideReason LONGCHAR,
+ExecutedBy LONG,
+CreatedAt  DATETIME,
+DecidedAt  DATETIME,
+ExecutedAt DATETIME
+);
+
+CREATE TABLE ScheduleChangeItems (
+ItemId     AUTOINCREMENT PRIMARY KEY,
+RequestId  LONG NOT NULL,
+EmployeeId LONG NOT NULL,
+DayNumber  LONG NOT NULL,
+OldShiftId LONG,
+NewShiftId LONG
+);
 CREATE INDEX IX_EmployeeFiles_Emp ON EmployeeFiles (EmployeeId);
 
 INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
@@ -742,3 +779,8 @@ INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, 
 VALUES ('Abroad', 'السفر للخارج', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
 INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)
 VALUES ('IncomeImprove', 'تحسين الدخل', 0, NULL, 1, 'افتراضياً غير محدودة — عدّل المدة من شاشة القوائم');
+
+ALTER TABLE ScheduleApprovals ADD CONSTRAINT FK_SAppr_Sched FOREIGN KEY (ScheduleId) REFERENCES MonthlySchedules(ScheduleId);
+ALTER TABLE ScheduleChangeItems ADD CONSTRAINT FK_SChgIt_Req FOREIGN KEY (RequestId) REFERENCES ScheduleChangeRequests(RequestId);
+ALTER TABLE ScheduleChangeItems ADD CONSTRAINT FK_SChgIt_Emp FOREIGN KEY (EmployeeId) REFERENCES Employees(EmployeeId);
+ALTER TABLE ScheduleChangeItems ADD CONSTRAINT FK_SChgIt_NewSh FOREIGN KEY (NewShiftId) REFERENCES Shifts(ShiftId);

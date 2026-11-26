@@ -259,6 +259,34 @@ namespace HR.UI.UI
                     employeeCells = new Dictionary<int, int>();
                 }
 
+                // public holidays get a red tint on the date cell (RosterCore lesson)
+                HashSet<int> holidayDays = new HashSet<int>();
+                try
+                {
+                    DateTime first = new DateTime(year, month, 1);
+                    DateTime last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+                    foreach (PublicHoliday holiday in PublicHolidayBLL.List(first, last))
+                    {
+                        if (holiday.HolidayDate == null)
+                        {
+                            continue;
+                        }
+                        DateTime date = holiday.HolidayDate.Value;
+                        if (date.Year == year && date.Month == month)
+                        {
+                            holidayDays.Add(date.Day);
+                        }
+                        else if (holiday.IsRecurring == true && date.Month == month && date.Day <= DateTime.DaysInMonth(year, month))
+                        {
+                            holidayDays.Add(date.Day);
+                        }
+                    }
+                }
+                catch (Exception unexpected)
+                {
+                    Logger.LogError(unexpected, "FrmEmployeeSchedule.Reload.Holidays");
+                }
+
                 // refresh the shift dropdown including a "غير مخصص" empty option
                 List<Shift> shiftList = new List<Shift>();
                 Shift empty = new Shift();
@@ -286,6 +314,7 @@ namespace HR.UI.UI
                     row.Cells["Day"].Value = day;
                     row.Cells["Date"].Value = date.ToString("yyyy-MM-dd");
                     row.Cells["Weekday"].Value = DayNameAr(date.DayOfWeek);
+                    row.Cells["Date"].Style.BackColor = holidayDays.Contains(day) ? Theme.StatusBad : Color.Empty;
                     int shiftId;
                     row.Cells["Shift"].Value = employeeCells.TryGetValue(day, out shiftId) ?
                         (object)shiftId : (object)null;

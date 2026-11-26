@@ -30,5 +30,14 @@ namespace HR.Entities
 
         /// <summary>LockedAt.</summary>
         public DateTime? LockedAt { get; set; }
+
+        /// <summary>User who submitted the schedule for approval.</summary>
+        public int? SubmittedBy { get; set; }
+
+        /// <summary>Submission timestamp.</summary>
+        public DateTime? SubmittedAt { get; set; }
+
+        /// <summary>Mandatory reason recorded on the last rejection.</summary>
+        public string RejectReason { get; set; }
     }
 }

@@ -231,6 +231,79 @@ namespace HR.DAL
                     ExecuteUpgrade(connection,
                         "CREATE INDEX IX_LongLeave_St ON LongLeaves (Status, FromDate)");
                 }
+                // RosterCore lessons (order 45f44386): approval-chain columns on
+                // MonthlySchedules plus three new tables and three settings.
+                EnsureColumn(connection, "MonthlySchedules", "SubmittedBy", "LONG");
+                EnsureColumn(connection, "MonthlySchedules", "SubmittedAt", "DATETIME");
+                EnsureColumn(connection, "MonthlySchedules", "RejectReason", "LONGCHAR");
+                if (!TableExists(connection, "ScheduleApprovals"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE ScheduleApprovals (" +
+                        "ApprovalId AUTOINCREMENT PRIMARY KEY, " +
+                        "ScheduleId LONG NOT NULL, Stage VARCHAR(12) NOT NULL, " +
+                        "UserId LONG, Reason LONGCHAR, CreatedAt DATETIME)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_SchedAppr_Sched ON ScheduleApprovals (ScheduleId)");
+                }
+                if (!TableExists(connection, "ScheduleChangeRequests"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE ScheduleChangeRequests (" +
+                        "RequestId AUTOINCREMENT PRIMARY KEY, " +
+                        "YearVal LONG NOT NULL, MonthVal LONG NOT NULL, " +
+                        "Status VARCHAR(12), Reason LONGCHAR, " +
+                        "RequestedBy LONG, DecidedBy LONG, DecideReason LONGCHAR, " +
+                        "ExecutedBy LONG, CreatedAt DATETIME, DecidedAt DATETIME, ExecutedAt DATETIME)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_SchedChg_Status ON ScheduleChangeRequests (Status)");
+                }
+                if (!TableExists(connection, "ScheduleChangeItems"))
+                {
+                    ExecuteUpgrade(connection,
+                        "CREATE TABLE ScheduleChangeItems (" +
+                        "ItemId AUTOINCREMENT PRIMARY KEY, " +
+                        "RequestId LONG NOT NULL, EmployeeId LONG NOT NULL, " +
+                        "DayNumber LONG NOT NULL, OldShiftId LONG, NewShiftId LONG)");
+                    ExecuteUpgrade(connection,
+                        "CREATE INDEX IX_SchedChgItem_Req ON ScheduleChangeItems (RequestId)");
+                }
+                using (OleDbCommand maxConsecCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Sch.MaxConsecutiveWorkDays'", connection))
+                {
+                    if (Convert.ToInt32(maxConsecCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Sch.MaxConsecutiveWorkDays', '6', '" +
+                            "أقصى عدد أيام عمل متتابعة في الجدول الشهري لكل موظف (0 = تعطيل القاعدة)" +
+                            "', Now())");
+                    }
+                }
+                using (OleDbCommand targetHoursCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Sch.TargetMonthlyHours'", connection))
+                {
+                    if (Convert.ToInt32(targetHoursCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Sch.TargetMonthlyHours', '0', '" +
+                            "هدف الساعات الشهري لكل موظف في الجدول — الحفظ يُرفض عند النقص (0 = تعطيل الفحص)" +
+                            "', Now())");
+                    }
+                }
+                using (OleDbCommand rotationCount = new OleDbCommand(
+                    "SELECT COUNT(*) FROM AppSettings WHERE SettingKey = 'Sch.RotationTemplates'", connection))
+                {
+                    if (Convert.ToInt32(rotationCount.ExecuteScalar()) == 0)
+                    {
+                        ExecuteUpgrade(connection,
+                            "INSERT INTO AppSettings (SettingKey, SettingValue, SettingDesc, UpdatedAt) " +
+                            "VALUES ('Sch.RotationTemplates', '5 عمل + 2 راحة=DEF:5,REST:2;3 عمل + 1 راحة=DEF:3,REST:1', '" +
+                            "قوالب الأنماط الدورية للجداول الشهرية — الاسم=DEF عدد,REST عدد مفصولة بفواصل والقوالب بفاصلة منقوطة؛ DEF=وردية الملء، REST=الراحة، أو كود وردية صريح" +
+                            "', Now())");
+                    }
+                }
             }
         }
 
