@@ -476,7 +476,7 @@ namespace HR.UI.UI
             private MonthData _month;
             private Employee _employee;
 
-            private CreateDialog()
+            internal CreateDialog()
             {
                 Theme.Apply(this);
                 Text = "طلب تعديل ورديات — مجموعة بنود متوازنة";
