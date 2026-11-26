@@ -124,6 +124,8 @@ namespace HR.UI.UI
             _numQuota.Size = new Size(90, 26);
             _numQuota.Minimum = 0;
             _numQuota.Maximum = 365;
+            _numQuota.DecimalPlaces = 1;
+            _numQuota.Increment = 0.5m;
 
             _btnSaveQuota = new Button();
             _btnSaveQuota.Text = "حفظ الحصة";
@@ -284,7 +286,7 @@ namespace HR.UI.UI
             }
             LeaveBalanceView view = _balanceRows[_gridBalance.CurrentRow.Index];
             _numQuota.Value = Math.Max(_numQuota.Minimum,
-                Math.Min(_numQuota.Maximum, view.QuotaDays));
+                Math.Min(_numQuota.Maximum, view.QuotaDays ?? 0m));
         }
 
         private void OnSaveQuotaClick()
@@ -299,7 +301,7 @@ namespace HR.UI.UI
             try
             {
                 LeaveBLL.SaveEmployeeQuota(_employeeId, (int)_numYear.Value,
-                    view.LeaveTypeId, (int)_numQuota.Value);
+                    view.LeaveTypeId, _numQuota.Value);
                 Theme.ShowInfo("تم حفظ الحصة.");
                 LoadBalances();
             }

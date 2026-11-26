@@ -57,7 +57,8 @@ namespace HR.BLL
                 throw new BusinessException("نوع الإجازة غير موجود.");
             }
             int userId = CurrentUserId();
-            request.DaysCount = DayCount(request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue);
+            request.DaysCount = SumDeduction(request.EmployeeId ?? 0,
+                request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue);
             if (LeaveDAL.HasOverlappingRequests(request.EmployeeId ?? 0,
                 request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue, null))
             {
@@ -98,7 +99,8 @@ namespace HR.BLL
             {
                 throw new BusinessException("نوع الإجازة غير موجود.");
             }
-            request.DaysCount = DayCount(request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue);
+            request.DaysCount = SumDeduction(request.EmployeeId ?? 0,
+                request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue);
             if (LeaveDAL.HasOverlappingRequests(stored.EmployeeId ?? 0,
                 request.StartDate ?? DateTime.MinValue, request.EndDate ?? DateTime.MinValue, leaveId))
             {
@@ -292,10 +294,10 @@ namespace HR.BLL
                 view.TypeName = type.TypeName;
                 view.QuotaDays = balance.QuotaDays ?? 0;
                 view.UsedDays = balance.UsedDays ?? 0;
-                view.YearRemaining = Math.Max(0, view.QuotaDays - view.UsedDays);
+                view.YearRemaining = Math.Max(0m, view.QuotaDays - view.UsedDays);
                 view.CarryOverDays = carryOverEnabled
                     ? LeaveDAL.CarryOver(employeeId, year, type.LeaveTypeId)
-                    : 0;
+                    : 0m;
                 view.TotalAvailable = view.YearRemaining + view.CarryOverDays;
                 rows.Add(view);
             }
@@ -321,9 +323,9 @@ namespace HR.BLL
                 view.TypeName = type.TypeName;
                 view.AnnualDays = type.AnnualDays;
                 view.RequiresDocValue = type.RequiresDoc;
-                int[] stats = LeaveDAL.ApprovedRequestStatsInWindow(employeeId, type.LeaveTypeId,
+                decimal[] stats = LeaveDAL.ApprovedRequestStatsInWindow(employeeId, type.LeaveTypeId,
                     FiscalStart(year).Date, FiscalStart(year + 1).Date);
-                view.ApprovedRequests = stats[0];
+                view.ApprovedRequests = (int)stats[0];
                 view.UsedDays = stats[1];
                 view.LifetimeDays = LeaveDAL.UsedDaysAllYears(employeeId, type.LeaveTypeId);
                 rows.Add(view);
@@ -332,11 +334,11 @@ namespace HR.BLL
         }
 
         /// <summary>Carry-over pool currently usable for one employee/type/year (0 when disabled).</summary>
-        public static int UsableCarryOver(int employeeId, int year, LeaveType type)
+        public static decimal UsableCarryOver(int employeeId, int year, LeaveType type)
         {
             if (type == null || !SettingsBLL.GetBool(CarryOverKey, true))
             {
-                return 0;
+                return 0m;
             }
             return LeaveDAL.CarryOver(employeeId, year, type.LeaveTypeId);
         }
@@ -364,7 +366,7 @@ namespace HR.BLL
         /// UsedDays stays recomputed from approved requests; only the quota
         /// changes. Gated by "Leaves.Approve" and audit-logged.
         /// </summary>
-        public static void SaveEmployeeQuota(int employeeId, int year, int leaveTypeId, int quotaDays)
+        public static void SaveEmployeeQuota(int employeeId, int year, int leaveTypeId, decimal quotaDays)
         {
             AppContext.RequireAnyPermission(new string[] { "Leaves.Approve", "Leaves.Balances" });
             LeaveType type = LeaveDAL.GetTypeById(leaveTypeId);
@@ -372,12 +374,12 @@ namespace HR.BLL
             {
                 throw new BusinessException("نوع الإجازة غير موجود.");
             }
-            if (quotaDays < 0 || quotaDays > 365)
+            if (quotaDays < 0m || quotaDays > 365m)
             {
                 throw new BusinessException("الرصيد يجب أن يكون بين 0 و 365 يومًا.");
             }
             LeaveBalance balance = MaterializeBalance(employeeId, year, leaveTypeId);
-            int oldQuota = balance.QuotaDays ?? 0;
+            decimal oldQuota = balance.QuotaDays ?? 0m;
             balance.QuotaDays = quotaDays;
             balance.Remaining = quotaDays - (balance.UsedDays ?? 0);
             LeaveDAL.UpsertBalance(balance);
@@ -406,16 +408,76 @@ namespace HR.BLL
             }
         }
 
-        private static int DayCount(DateTime startDate, DateTime endDate)
+        /// <summary>
+        /// Leave deduction follows the shift of every leave day (order aa2c7e45):
+        /// a 6h or 7h shift counts as 1.0 day, 9h as 1.5 days and 12h as 2.0 days.
+        /// The shift is read from the employee's monthly schedule; days without a
+        /// scheduled cell (unassigned monthly schedule) default to 1.0 day, and
+        /// weekly-rest days (shift code "FR") deduct nothing.
+        /// </summary>
+        private static decimal SumDeduction(int employeeId, DateTime startDate, DateTime endDate)
         {
-            return (endDate.Date - startDate.Date).Days + 1;
+            decimal total = 0m;
+            Dictionary<string, MonthData> monthCache = new Dictionary<string, MonthData>();
+            DateTime cursor = startDate.Date;
+            while (cursor <= endDate.Date)
+            {
+                MonthData month = LoadMonthCached(monthCache, cursor.Year, cursor.Month);
+                int shiftId;
+                if (month != null && month.Cells.ContainsKey(employeeId) &&
+                    month.Cells[employeeId].TryGetValue(cursor.Day, out shiftId))
+                {
+                    Shift shift;
+                    month.Shifts.TryGetValue(shiftId, out shift);
+                    total += DeductionForShift(shift);
+                }
+                else
+                {
+                    total += 1m;
+                }
+                cursor = cursor.AddDays(1);
+            }
+            return total;
+        }
+
+        /// <summary>Half-day deductible for one shift: 6-7h = 1.0, 9h = 1.5, 12h = 2.0.</summary>
+        private static decimal DeductionForShift(Shift shift)
+        {
+            if (shift == null)
+            {
+                return 1m;
+            }
+            if (string.Equals(shift.ShiftCode ?? string.Empty, "FR", StringComparison.OrdinalIgnoreCase))
+            {
+                return 0m;
+            }
+            float hours = shift.DurationHrs != null ? shift.DurationHrs.Value :
+                (shift.NormalHours != null ? shift.NormalHours.Value : 8f);
+            if (hours <= 0f)
+            {
+                return 1m;
+            }
+            decimal deduction = Math.Floor(((decimal)hours / 6m) * 2m) * 0.5m;
+            return deduction < 0.5m ? 0.5m : deduction;
+        }
+
+        private static MonthData LoadMonthCached(Dictionary<string, MonthData> cache, int year, int month)
+        {
+            string key = year + "-" + month;
+            if (cache.ContainsKey(key))
+            {
+                return cache[key];
+            }
+            MonthData month = ScheduleBLL.LoadMonth(year, month, null, null);
+            cache[key] = month;
+            return month;
         }
 
         private static void CheckBalance(LeaveRequest request, LeaveType type, int? excludeLeaveId)
         {
             if (string.Equals(type.LeaveTypeCode, "Hajj", StringComparison.Ordinal))
             {
-                int lifetime = LeaveDAL.UsedDaysAllYears(request.EmployeeId ?? 0, type.LeaveTypeId);
+                decimal lifetime = LeaveDAL.UsedDaysAllYears(request.EmployeeId ?? 0, type.LeaveTypeId);
                 if (lifetime > 0)
                 {
                     throw new BusinessException("إجازة الحج تُمنح مرة واحدة في العمر — المُستهلَك سابقاً: " + lifetime + " يوماً.");
@@ -425,8 +487,8 @@ namespace HR.BLL
             LeaveBalance balance = MaterializeBalance(request.EmployeeId ?? 0, year, type.LeaveTypeId);
             // quota types may draw from the previous-years carry-over pool;
             // special types keep the plain per-year quota check.
-            int available = (balance.Remaining ?? 0) +
-                (IsBalanceType(type) ? UsableCarryOver(request.EmployeeId ?? 0, year, type) : 0);
+            decimal available = (balance.Remaining ?? 0m) +
+                (IsBalanceType(type) ? UsableCarryOver(request.EmployeeId ?? 0, year, type) : 0m);
             if ((request.DaysCount ?? 0) > available)
             {
                 throw new BusinessException("الرصيد لا يكفي — المطلوب: " + request.DaysCount +
@@ -442,12 +504,12 @@ namespace HR.BLL
                 return;
             }
             int year = BalanceYearFor(request.StartDate ?? DateTime.Now);
-            int previouslyUsed = LeaveDAL.UsedDaysInWindow(stored.EmployeeId ?? 0, type.LeaveTypeId,
+            decimal previouslyUsed = LeaveDAL.UsedDaysInWindow(stored.EmployeeId ?? 0, type.LeaveTypeId,
                 FiscalStart(year).Date, FiscalStart(year + 1).Date);
-            int newUsed = previouslyUsed - (stored.DaysCount ?? 0) + (request.DaysCount ?? 0);
+            decimal newUsed = previouslyUsed - (stored.DaysCount ?? 0m) + (request.DaysCount ?? 0m);
             LeaveBalance balance = MaterializeBalance(stored.EmployeeId ?? 0, year, type.LeaveTypeId);
-            int updateAvailable = (balance.QuotaDays ?? 0) +
-                (IsBalanceType(type) ? UsableCarryOver(stored.EmployeeId ?? 0, year, type) : 0);
+            decimal updateAvailable = (balance.QuotaDays ?? 0m) +
+                (IsBalanceType(type) ? UsableCarryOver(stored.EmployeeId ?? 0, year, type) : 0m);
             if (newUsed > updateAvailable)
             {
                 throw new BusinessException("الرصيد بعد التعديل يتجاوز الحصة — الحصة: " + (balance.QuotaDays ?? 0) +
@@ -460,9 +522,9 @@ namespace HR.BLL
         {
             LeaveType type = LeaveDAL.GetTypeById(leaveTypeId);
             LeaveBalance existing = LeaveDAL.GetBalance(employeeId, year, leaveTypeId);
-            int quota = existing != null && existing.QuotaDays != null ?
-                existing.QuotaDays.Value : (type != null && type.AnnualDays != null ? type.AnnualDays.Value : 0);
-            int used = LeaveDAL.UsedDaysInWindow(employeeId, leaveTypeId,
+            decimal quota = existing != null && existing.QuotaDays != null ?
+                existing.QuotaDays.Value : (type != null && type.AnnualDays != null ? (decimal)type.AnnualDays.Value : 0m);
+            decimal used = LeaveDAL.UsedDaysInWindow(employeeId, leaveTypeId,
                 FiscalStart(year).Date, FiscalStart(year + 1).Date);
             LeaveBalance balance = new LeaveBalance();
             balance.EmployeeId = employeeId;

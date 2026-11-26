@@ -17,12 +17,12 @@ namespace HR.Entities
         public int? LeaveTypeId { get; set; }
 
         /// <summary>QuotaDays.</summary>
-        public int? QuotaDays { get; set; }
+        public decimal? QuotaDays { get; set; }
 
         /// <summary>UsedDays.</summary>
-        public int? UsedDays { get; set; }
+        public decimal? UsedDays { get; set; }
 
         /// <summary>Remaining.</summary>
-        public int? Remaining { get; set; }
+        public decimal? Remaining { get; set; }
     }
 }

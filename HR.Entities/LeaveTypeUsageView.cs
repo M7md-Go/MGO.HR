@@ -17,10 +17,10 @@ namespace HR.Entities
         public int ApprovedRequests { get; set; }
 
         /// <summary>Approved used days of the selected year.</summary>
-        public int UsedDays { get; set; }
+        public decimal UsedDays { get; set; }
 
         /// <summary>Approved used days over all years.</summary>
-        public int LifetimeDays { get; set; }
+        public decimal LifetimeDays { get; set; }
 
         /// <summary>Indicative ceiling (type AnnualDays) or null when unlimited.</summary>
         public int? AnnualDays { get; set; }

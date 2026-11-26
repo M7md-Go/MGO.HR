@@ -103,7 +103,7 @@ namespace HR.DAL
             row.TypeName = r.IsDBNull(5) ? null : r.GetString(5);
             row.StartDate = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6);
             row.EndDate = r.IsDBNull(7) ? (DateTime?)null : r.GetDateTime(7);
-            row.DaysCount = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8));
+            row.DaysCount = r.IsDBNull(8) ? (decimal?)null : Convert.ToDecimal(r.GetValue(8));
             row.Reason = r.IsDBNull(9) ? null : r.GetString(9);
             row.RejectReason = r.IsDBNull(10) ? null : r.GetString(10);
             row.Status = r.IsDBNull(11) ? null : r.GetString(11);
@@ -138,7 +138,7 @@ namespace HR.DAL
         }
 
         public static void UpdateRequest(int leaveId, int leaveTypeId, DateTime startDate, DateTime endDate,
-            int daysCount, string reason)
+            decimal daysCount, string reason)
         {
             Db.ExecuteNonQuery(
                 "UPDATE LeaveRequests SET LeaveTypeId = ?, StartDate = ?, EndDate = ?, DaysCount = ?, Reason = ? WHERE LeaveId = ?",
@@ -186,23 +186,23 @@ namespace HR.DAL
         /// (default 1/7 → 30/6) resolved by LeaveBLL — the DAL stays
         /// year-label agnostic.
         /// </summary>
-        public static int UsedDaysInWindow(int employeeId, int leaveTypeId,
+        public static decimal UsedDaysInWindow(int employeeId, int leaveTypeId,
             DateTime fromDate, DateTime toExclusive)
         {
             object value = Db.ExecuteScalar(
                 "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND Status = 'Approved' " +
                 "AND LeaveTypeId = ? AND StartDate >= ? AND StartDate < ?",
                 Db.P(employeeId), Db.P(leaveTypeId), Db.PDate(fromDate), Db.PDate(toExclusive));
-            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            return value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
         }
 
         /// <summary>SUM over every year (Hajj-once-a-lifetime check).</summary>
-        public static int UsedDaysAllYears(int employeeId, int leaveTypeId)
+        public static decimal UsedDaysAllYears(int employeeId, int leaveTypeId)
         {
             object value = Db.ExecuteScalar(
                 "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND Status = 'Approved' AND LeaveTypeId = ?",
                 Db.P(employeeId), Db.P(leaveTypeId));
-            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            return value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
         }
 
         public static LeaveBalance GetBalance(int employeeId, int year, int leaveTypeId)
@@ -221,9 +221,9 @@ namespace HR.DAL
             row.EmployeeId = r.IsDBNull(1) ? (int?)null : r.GetInt32(1);
             row.YearVal = r.IsDBNull(2) ? (int?)null : Convert.ToInt32(r.GetValue(2));
             row.LeaveTypeId = r.IsDBNull(3) ? (int?)null : Convert.ToInt32(r.GetValue(3));
-            row.QuotaDays = r.IsDBNull(4) ? (int?)null : Convert.ToInt32(r.GetValue(4));
-            row.UsedDays = r.IsDBNull(5) ? (int?)null : Convert.ToInt32(r.GetValue(5));
-            row.Remaining = r.IsDBNull(6) ? (int?)null : Convert.ToInt32(r.GetValue(6));
+            row.QuotaDays = r.IsDBNull(4) ? (decimal?)null : Convert.ToDecimal(r.GetValue(4));
+            row.UsedDays = r.IsDBNull(5) ? (decimal?)null : Convert.ToDecimal(r.GetValue(5));
+            row.Remaining = r.IsDBNull(6) ? (decimal?)null : Convert.ToDecimal(r.GetValue(6));
             return row;
         }
 
@@ -261,17 +261,17 @@ namespace HR.DAL
         /// employee/type — the carry-over pool shown and usable in the
         /// annual balances grid.
         /// </summary>
-        public static int CarryOver(int employeeId, int year, int leaveTypeId)
+        public static decimal CarryOver(int employeeId, int year, int leaveTypeId)
         {
             object value = Db.ExecuteScalar(
                 "SELECT SUM(Remaining) FROM LeaveBalances WHERE EmployeeId = ? AND LeaveTypeId = ? " +
                 "AND YearVal < ? AND Remaining > 0",
                 Db.P(employeeId), Db.P(leaveTypeId), Db.P(year));
-            return value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
+            return value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
         }
 
         /// <summary>Approved request count and day total inside a fiscal-year window (special usage grid).</summary>
-        public static int[] ApprovedRequestStatsInWindow(int employeeId, int leaveTypeId,
+        public static decimal[] ApprovedRequestStatsInWindow(int employeeId, int leaveTypeId,
             DateTime fromDate, DateTime toExclusive)
         {
             object value = Db.ExecuteScalar(
@@ -283,8 +283,8 @@ namespace HR.DAL
                 "SELECT SUM(DaysCount) FROM LeaveRequests WHERE EmployeeId = ? AND LeaveTypeId = ? " +
                 "AND Status = 'Approved' AND StartDate >= ? AND StartDate < ?",
                 Db.P(employeeId), Db.P(leaveTypeId), Db.PDate(fromDate), Db.PDate(toExclusive));
-            int days = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
-            return new int[] { count, days };
+            decimal days = value == null || value == DBNull.Value ? 0m : Convert.ToDecimal(value);
+            return new decimal[] { count, days };
         }
 
         /// <summary>
@@ -324,9 +324,9 @@ namespace HR.DAL
             row.LeaveTypeId = r.IsDBNull(5) ? (int?)null : Convert.ToInt32(r.GetValue(5));
             row.TypeCode = r.IsDBNull(6) ? null : Convert.ToString(r.GetValue(6));
             row.TypeName = r.IsDBNull(7) ? null : Convert.ToString(r.GetValue(7));
-            row.QuotaDays = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8));
-            row.UsedDays = r.IsDBNull(9) ? (int?)null : Convert.ToInt32(r.GetValue(9));
-            row.Remaining = r.IsDBNull(10) ? (int?)null : Convert.ToInt32(r.GetValue(10));
+            row.QuotaDays = r.IsDBNull(8) ? (decimal?)null : Convert.ToDecimal(r.GetValue(8));
+            row.UsedDays = r.IsDBNull(9) ? (decimal?)null : Convert.ToDecimal(r.GetValue(9));
+            row.Remaining = r.IsDBNull(10) ? (decimal?)null : Convert.ToDecimal(r.GetValue(10));
             return row;
         }
     }

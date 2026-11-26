@@ -126,7 +126,7 @@ namespace HR.DAL
             row.LeaveTypeId = r.IsDBNull(2) ? (int?)null : Convert.ToInt32(r.GetValue(2));
             row.StartDate = r.IsDBNull(3) ? (DateTime?)null : r.GetDateTime(3);
             row.EndDate = r.IsDBNull(4) ? (DateTime?)null : r.GetDateTime(4);
-            row.DaysCount = r.IsDBNull(5) ? (int?)null : Convert.ToInt32(r.GetValue(5));
+            row.DaysCount = r.IsDBNull(5) ? (decimal?)null : Convert.ToDecimal(r.GetValue(5));
             row.Reason = r.IsDBNull(6) ? null : r.GetString(6);
             row.Status = r.IsDBNull(7) ? null : r.GetString(7);
             row.ApprovedBy = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8));

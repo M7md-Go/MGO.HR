@@ -44,7 +44,7 @@ namespace HR.Entities
         /// <summary>Approved leave requests starting inside the period.</summary>
         public int ApprovedLeaves;
         /// <summary>Approved leave days inside the period.</summary>
-        public int LeaveDays;
+        public decimal LeaveDays;
         /// <summary>Approved missions starting inside the period.</summary>
         public int ApprovedMissions;
         /// <summary>Printable period description (Arabic).</summary>

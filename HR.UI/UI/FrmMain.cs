@@ -162,11 +162,17 @@ namespace HR.UI.UI
                 new string[] { "Org.Manage" }), null));
             miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("longleavetypes", "أنواع الإجازات الطويلة",
                 new string[] { "Org.Manage" }), null));
+            // Order aa2c7e45: fiscal-year batch balance entry by the authorized staff.
+            miLeaves.DropDownItems.Add(StoreAndMenu(new NavItem("balanceentry", "إدخال أرصدة الموظفين (فردي أو جماعي)",
+                new string[] { "Leaves.Approve", "Leaves.Balances" }), null));
 
             // Tab 4: الجداول الشهرية.
             ToolStripMenuItem miSchedule = new ToolStripMenuItem("الجداول الشهرية");
             miSchedule.DropDownItems.Add(StoreAndMenu(new NavItem("monthly", "الجدول الشهري (توزيع الورديات على الموظفين)",
                 new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }), Keys.F6));
+            // Order aa2c7e45: per-employee per-day schedule adjustment window.
+            miSchedule.DropDownItems.Add(StoreAndMenu(new NavItem("empschedule", "تعديل جدول موظف لأيام محددة",
+                new string[] { "Schedule.Edit", "Schedule.Approve", "Schedule.Unlock" }), null));
 
             // Tab 5: الحضور والانصراف والإعدادات.
             ToolStripMenuItem miAttendance = new ToolStripMenuItem("الحضور والانصراف والإعدادات");
@@ -414,6 +420,8 @@ namespace HR.UI.UI
                 case "settings": form = new FrmSettings(); break;
                 case "printsettings": form = new FrmPrintSettings(); break;
                 case "leavetypes": form = new FrmLeaveTypes(); break;
+                case "balanceentry": form = new FrmBalanceEntry(); break;
+                case "empschedule": form = new FrmEmployeeSchedule(); break;
                 case "longleavetypes": form = new FrmLongLeaveTypes(); break;
                 case "holidays": form = new FrmPublicHolidays(); break;
                 case "overtime": form = new FrmOvertime(); break;

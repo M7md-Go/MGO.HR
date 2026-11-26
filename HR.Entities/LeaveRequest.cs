@@ -20,7 +20,7 @@ namespace HR.Entities
         public DateTime? EndDate { get; set; }
 
         /// <summary>DaysCount.</summary>
-        public int? DaysCount { get; set; }
+        public decimal? DaysCount { get; set; }
 
         /// <summary>Reason.</summary>
         public string Reason { get; set; }

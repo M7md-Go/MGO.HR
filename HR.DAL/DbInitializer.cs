@@ -208,6 +208,13 @@ namespace HR.DAL
                     ExecuteUpgrade(connection,
                         "CREATE INDEX IX_EmployeeFiles_Emp ON EmployeeFiles (EmployeeId)");
                 }
+                // Order aa2c7e45: balance/request day amounts become CURRENCY so
+                // half-day shift-based deductions (6-7h = 1.0, 9h = 1.5, 12h = 2.0)
+                // can be stored. Existing integer values convert losslessly.
+                EnsureCurrencyColumn(connection, "LeaveRequests", "DaysCount");
+                EnsureCurrencyColumn(connection, "LeaveBalances", "QuotaDays");
+                EnsureCurrencyColumn(connection, "LeaveBalances", "UsedDays");
+                EnsureCurrencyColumn(connection, "LeaveBalances", "Remaining");
                 if (!TableExists(connection, "LongLeaves"))
                 {
                     ExecuteUpgrade(connection,
@@ -224,6 +231,33 @@ namespace HR.DAL
                     ExecuteUpgrade(connection,
                         "CREATE INDEX IX_LongLeave_St ON LongLeaves (Status, FromDate)");
                 }
+            }
+        }
+
+        /// <summary>
+        /// Converts LONG day-amount columns to CURRENCY in place. Kept separate from
+        /// EnsureColumn because the same column-name rows are reused for the type check
+        /// (adCurrency = 6); a conversion is skipped when the column is already currency.
+        /// </summary>
+        private static void EnsureCurrencyColumn(OleDbConnection connection, string tableName, string columnName)
+        {
+            if (!ColumnExists(connection, tableName, columnName))
+            {
+                ExecuteUpgrade(connection, "ALTER TABLE " + tableName +
+                    " ADD COLUMN " + columnName + " CURRENCY");
+                return;
+            }
+            DataTable columns = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Columns,
+                new object[] { null, null, tableName, columnName });
+            if (columns == null || columns.Rows.Count == 0)
+            {
+                return;
+            }
+            int dataType = Convert.ToInt32(columns.Rows[0]["DATA_TYPE"]);
+            if (dataType != 6)
+            {
+                ExecuteUpgrade(connection, "ALTER TABLE " + tableName +
+                    " ALTER COLUMN " + columnName + " CURRENCY");
             }
         }
 

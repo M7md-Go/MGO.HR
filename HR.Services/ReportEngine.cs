@@ -616,9 +616,9 @@ namespace HR.Services
             report.AddColumn("UsedDays", "المستهلك", 60);
             report.AddColumn("Remaining", "المتبقي", 60);
 
-            long totalQuota = 0;
-            long totalUsed = 0;
-            long totalRemaining = 0;
+            decimal totalQuota = 0m;
+            decimal totalUsed = 0m;
+            decimal totalRemaining = 0m;
             int visible = 0;
             foreach (LeaveBalanceLedgerView row in rows)
             {
@@ -631,9 +631,9 @@ namespace HR.Services
                     row.YearVal == null ? "" : row.YearVal.Value.ToString(),
                     (row.QuotaDays ?? 0).ToString(), (row.UsedDays ?? 0).ToString(),
                     (row.Remaining ?? 0).ToString());
-                totalQuota += row.QuotaDays ?? 0;
-                totalUsed += row.UsedDays ?? 0;
-                totalRemaining += row.Remaining ?? 0;
+                totalQuota += row.QuotaDays ?? 0m;
+                totalUsed += row.UsedDays ?? 0m;
+                totalRemaining += row.Remaining ?? 0m;
                 visible++;
             }
             List<string> totals = EmptyTotals(report);
@@ -652,7 +652,7 @@ namespace HR.Services
             List<LeaveRequestView> rows = LeaveDAL.SearchRequests("Approved", null, fromDate, toDate, MaxRows);
             List<string> typeOrder = new List<string>();
             Dictionary<string, int> typeCount = new Dictionary<string, int>(StringComparer.Ordinal);
-            Dictionary<string, int> typeDays = new Dictionary<string, int>(StringComparer.Ordinal);
+            Dictionary<string, decimal> typeDays = new Dictionary<string, decimal>(StringComparer.Ordinal);
             Dictionary<string, HashSet<int>> typeEmployees =
                 new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
             foreach (LeaveRequestView row in rows)
@@ -662,7 +662,7 @@ namespace HR.Services
                 {
                     typeOrder.Add(type);
                     typeCount[type] = 0;
-                    typeDays[type] = 0;
+                    typeDays[type] = 0m;
                     typeEmployees[type] = new HashSet<int>();
                 }
                 typeCount[type] += 1;
