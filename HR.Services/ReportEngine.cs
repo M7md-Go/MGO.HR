@@ -908,7 +908,7 @@ namespace HR.Services
 
             List<int> employeeOrder = new List<int>();
             Dictionary<int, Dictionary<string, int>> assignment =
-                new Dictionary<int, Dictionary<string, int>>(StringComparer.Ordinal);
+                new Dictionary<int, Dictionary<string, int>>();
             foreach (ScheduleDetail detail in details)
             {
                 if (detail.EmployeeId == null)
