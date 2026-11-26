@@ -468,9 +468,9 @@ namespace HR.BLL
             {
                 return cache[key];
             }
-            MonthData month = ScheduleBLL.LoadMonth(year, month, null, null);
-            cache[key] = month;
-            return month;
+            MonthData data = ScheduleBLL.LoadMonth(year, month, null, null);
+            cache[key] = data;
+            return data;
         }
 
         private static void CheckBalance(LeaveRequest request, LeaveType type, int? excludeLeaveId)
