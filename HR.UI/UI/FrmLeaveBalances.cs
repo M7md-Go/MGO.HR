@@ -286,7 +286,7 @@ namespace HR.UI.UI
             }
             LeaveBalanceView view = _balanceRows[_gridBalance.CurrentRow.Index];
             _numQuota.Value = Math.Max(_numQuota.Minimum,
-                Math.Min(_numQuota.Maximum, view.QuotaDays ?? 0m));
+                Math.Min(_numQuota.Maximum, view.QuotaDays));
         }
 
         private void OnSaveQuotaClick()
