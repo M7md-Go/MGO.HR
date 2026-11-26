@@ -185,8 +185,10 @@ namespace HR.UI.UI
                 new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
             miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("attexceptions", "سجل استثناءات الحضور",
                 new string[] { "Attendance.Edit", "Attendance.ApproveAdjust", "Reports.View" }), null));
-            miAttendance.DropDownItems.Add(new ToolStripSeparator());
-            miAttendance.DropDownItems.Add(StoreAndMenu(new NavItem("reports", "التقارير",
+
+            // Tab: التقارير — top-level tab with its own menu (order 0507f8ff).
+            ToolStripMenuItem miReports = new ToolStripMenuItem("التقارير");
+            miReports.DropDownItems.Add(StoreAndMenu(new NavItem("reports", "مركز التقارير (المعاينة والطباعة والتصدير)",
                 new string[] { "Reports.View" }), null));
 
             // Tab 7: إدارة قاعدة البيانات — administrators only (Settings.Manage).
@@ -213,6 +215,7 @@ namespace HR.UI.UI
             menu.Items.Add(miEmployees);
             menu.Items.Add(miLeaves);
             menu.Items.Add(miSchedule);
+            menu.Items.Add(miReports);
             menu.Items.Add(miAttendance);
             menu.Items.Add(miDatabase);
             menu.Items.Add(miAbout);

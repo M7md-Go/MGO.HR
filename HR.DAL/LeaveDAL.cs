@@ -286,5 +286,48 @@ namespace HR.DAL
             int days = value == null || value == DBNull.Value ? 0 : Convert.ToInt32(value);
             return new int[] { count, days };
         }
+
+        /// <summary>
+        /// Balance ledger across ALL employees for the organization-wide
+        /// balances report: optional balance year, optional leave type.
+        /// </summary>
+        public static List<LeaveBalanceLedgerView> BrowseBalances(int? year, int? leaveTypeId)
+        {
+            string sql =
+                "SELECT b.BalanceId, b.EmployeeId, e.EmployeeCode, e.FullNameAr, b.YearVal, " +
+                "b.LeaveTypeId, t.LeaveTypeCode, t.TypeName, b.QuotaDays, b.UsedDays, b.Remaining " +
+                "FROM ((LeaveBalances b INNER JOIN Employees e ON b.EmployeeId = e.EmployeeId) " +
+                "LEFT JOIN LeaveTypes t ON b.LeaveTypeId = t.LeaveTypeId) WHERE 1 = 1";
+            List<OleDbParameter> parameters = new List<OleDbParameter>();
+            if (year != null)
+            {
+                sql += " AND b.YearVal = ?";
+                parameters.Add(Db.P(year.Value));
+            }
+            if (leaveTypeId != null)
+            {
+                sql += " AND b.LeaveTypeId = ?";
+                parameters.Add(Db.P(leaveTypeId.Value));
+            }
+            sql += " ORDER BY b.YearVal DESC, e.EmployeeCode, b.LeaveTypeId";
+            return Db.ReadList(sql, MapBalanceLedger, parameters.ToArray());
+        }
+
+        private static LeaveBalanceLedgerView MapBalanceLedger(OleDbDataReader r)
+        {
+            LeaveBalanceLedgerView row = new LeaveBalanceLedgerView();
+            row.BalanceId = Convert.ToInt32(r.GetValue(0));
+            row.EmployeeId = r.IsDBNull(1) ? (int?)null : Convert.ToInt32(r.GetValue(1));
+            row.EmployeeCode = r.IsDBNull(2) ? null : Convert.ToString(r.GetValue(2));
+            row.EmployeeName = r.IsDBNull(3) ? null : Convert.ToString(r.GetValue(3));
+            row.YearVal = r.IsDBNull(4) ? (int?)null : Convert.ToInt32(r.GetValue(4));
+            row.LeaveTypeId = r.IsDBNull(5) ? (int?)null : Convert.ToInt32(r.GetValue(5));
+            row.TypeCode = r.IsDBNull(6) ? null : Convert.ToString(r.GetValue(6));
+            row.TypeName = r.IsDBNull(7) ? null : Convert.ToString(r.GetValue(7));
+            row.QuotaDays = r.IsDBNull(8) ? (int?)null : Convert.ToInt32(r.GetValue(8));
+            row.UsedDays = r.IsDBNull(9) ? (int?)null : Convert.ToInt32(r.GetValue(9));
+            row.Remaining = r.IsDBNull(10) ? (int?)null : Convert.ToInt32(r.GetValue(10));
+            return row;
+        }
     }
 }

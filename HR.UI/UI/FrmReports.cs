@@ -24,7 +24,29 @@ namespace HR.UI.UI
             "DailyAttendance", "MonthlySummary", "DepartmentSummary",
             "LateSummary", "AttendanceMatrix",
             "Leaves", "Missions", "Penalties", "Overtime",
-            "RawFingerprint", "Employees"
+            "RawFingerprint", "Employees",
+            "LeaveBalances", "LeaveSummaryByType", "OvertimeSummary",
+            "Absences", "AttendanceExceptions", "AdjustmentsReport",
+            "PublicHolidaysReport", "SchedulesReport", "DevicesReport",
+            "EmployeeHistoryReport",
+            "UsersReport", "LoginHistoryReport", "AuditTrail"
+        };
+
+        /// <summary>Admin-scoped reports hidden from users without any admin key
+        /// (Users &amp; LoginHistory &amp; Audit). Defense in depth: the reload
+        /// path checks the same keys again (master prompt rule 11).</summary>
+        private static readonly string[] AdminReportKeys = new string[]
+        {
+            "Users.Manage", "Settings.Manage"
+        };
+
+        private static readonly bool[] ReportAdminOnly = new bool[]
+        {
+            false, false, false, false, false, false,
+            false, false, false, false, false, false,
+            false, false, false, false, false, false,
+            false, false, false,
+            true, true, true
         };
 
         private static readonly string[] ReportNames = new string[]
@@ -39,14 +61,32 @@ namespace HR.UI.UI
             "الجزاءات",
             "الساعات الإضافية",
             "البصمة الخام",
-            "دليل الموظفين"
+            "دليل الموظفين",
+            "أرصدة الإجازات",
+            "ملخص الإجازات حسب النوع (سنة مالية)",
+            "ملخص الساعات الإضافية لكل موظف (شهري)",
+            "تفاصيل الغياب",
+            "استثناءات الحضور",
+            "تصحيحات الحضور اليدوية",
+            "العطل الرسمية",
+            "توزيع الورديات الشهري",
+            "جرد أجهزة البصمة",
+            "سجل تغييرات موظف",
+            "المستخدمون والأدوار",
+            "سجل محاولات الدخول",
+            "سجل العمليات (التدقيق)"
         };
 
         private static readonly string[] FilterModes = new string[]
         {
             "None", "None", "None", "None", "None",
             "Status", "Status", "Type", "Status",
-            "Device", "Archived"
+            "Device", "Archived",
+            "None", "None", "None",
+            "None", "None", "Status",
+            "None", "None", "None",
+            "None",
+            "None", "None", "None"
         };
 
         private static readonly string[] StatusValues = new string[]
@@ -82,6 +122,9 @@ namespace HR.UI.UI
         private Button _btnExport;
         private DataGridView _grid;
         private ReportData _report;
+        /// <summary>Displayed-index -> full-array index (admin reports are
+        /// hidden from the combo when the user lacks the admin keys).</summary>
+        private List<int> _reportIndexes;
 
         public FrmReports()
         {
@@ -119,9 +162,15 @@ namespace HR.UI.UI
             _cboReport = new ComboBox();
             _cboReport.DropDownStyle = ComboBoxStyle.DropDownList;
             _cboReport.Width = 140;
-            foreach (string name in ReportNames)
+            _reportIndexes = new List<int>();
+            for (int i = 0; i < ReportNames.Length; i++)
             {
-                _cboReport.Items.Add(name);
+                if (ReportAdminOnly[i] && !AppContext.HasAnyPermission(AdminReportKeys))
+                {
+                    continue; // admin-scoped reports stay invisible to normal users
+                }
+                _reportIndexes.Add(i);
+                _cboReport.Items.Add(ReportNames[i]);
             }
             _cboReport.SelectedIndex = 0;
             _cboReport.SelectedIndexChanged += delegate { UpdateFilterItems(); UpdateHint(); };
@@ -238,6 +287,13 @@ namespace HR.UI.UI
             UpdateHint();
         }
 
+        /// <summary>Full-array index of the currently selected report.</summary>
+        private int CurrentReportIndex()
+        {
+            int displayIndex = _cboReport.SelectedIndex >= 0 ? _cboReport.SelectedIndex : 0;
+            return displayIndex < _reportIndexes.Count ? _reportIndexes[displayIndex] : 0;
+        }
+
         private void LoadDepartments()
         {
             try
@@ -268,7 +324,7 @@ namespace HR.UI.UI
         /// </summary>
         private void UpdateFilterItems()
         {
-            string mode = FilterModes[_cboReport.SelectedIndex >= 0 ? _cboReport.SelectedIndex : 0];
+            string mode = FilterModes[CurrentReportIndex()];
             _cboFilter.Items.Clear();
             if (mode == "Status")
             {
@@ -325,7 +381,7 @@ namespace HR.UI.UI
         /// </summary>
         private string FilterTextValue()
         {
-            string mode = FilterModes[_cboReport.SelectedIndex >= 0 ? _cboReport.SelectedIndex : 0];
+            string mode = FilterModes[CurrentReportIndex()];
             int index = _cboFilter.SelectedIndex >= 0 ? _cboFilter.SelectedIndex : 0;
             if (mode == "Status")
             {
@@ -367,7 +423,7 @@ namespace HR.UI.UI
 
         private void UpdateHint()
         {
-            string code = ReportCodes[_cboReport.SelectedIndex >= 0 ? _cboReport.SelectedIndex : 0];
+            string code = ReportCodes[CurrentReportIndex()];
             if (code == "MonthlySummary")
             {
                 _lblHint.Text = "الشهر يُؤخذ من تاريخ البداية";
@@ -387,6 +443,34 @@ namespace HR.UI.UI
             else if (code == "Employees")
             {
                 _lblHint.Text = "لا تنطبق فلاتر التاريخ أو القسم على هذا التقرير";
+            }
+            else if (code == "LeaveBalances")
+            {
+                _lblHint.Text = "سنة الرصيد من تاريخ البداية — فلتر الموظف اختياري";
+            }
+            else if (code == "LeaveSummaryByType")
+            {
+                _lblHint.Text = "السنة المالية المبدوءة بسنة تاريخ البداية — الطلبات المعتمدة فقط";
+            }
+            else if (code == "OvertimeSummary")
+            {
+                _lblHint.Text = "الشهر من تاريخ البداية";
+            }
+            else if (code == "PublicHolidaysReport")
+            {
+                _lblHint.Text = "سنة التقويم من تاريخ البداية — تشمل العطل المتكررة";
+            }
+            else if (code == "SchedulesReport")
+            {
+                _lblHint.Text = "الشهر من تاريخ البداية — حالة الجدول تعرض في سطر الفترة";
+            }
+            else if (code == "EmployeeHistoryReport")
+            {
+                _lblHint.Text = "يتطلب تحديد الموظف في فلتر الموظف";
+            }
+            else if (code == "UsersReport" || code == "LoginHistoryReport" || code == "AuditTrail")
+            {
+                _lblHint.Text = "تقرير إدارِي — يظهر لمن يملك صلاحية المستخدمين أو إعدادات النظام";
             }
             else
             {
@@ -414,7 +498,7 @@ namespace HR.UI.UI
         {
             try
             {
-                string code = ReportCodes[_cboReport.SelectedIndex >= 0 ? _cboReport.SelectedIndex : 0];
+                string code = ReportCodes[CurrentReportIndex()];
                 int? departmentId = _cboDepartment.SelectedValue is int ? (int)_cboDepartment.SelectedValue : 0;
                 departmentId = departmentId == 0 ? (int?)null : departmentId;
                 int? employeeId = ResolveEmployee();
@@ -475,6 +559,68 @@ namespace HR.UI.UI
                     DateTime toTime = (_dtpTo.Checked ? toDate : DateTime.Now.Date).AddDays(1).AddSeconds(-1);
                     _report = ReportEngine.RawFingerprint(fromTime, toTime,
                         FilterDeviceId(), employeeId);
+                }
+                else if (code == "LeaveBalances")
+                {
+                    _report = ReportEngine.LeaveBalances(fromDate.Year, employeeId);
+                }
+                else if (code == "LeaveSummaryByType")
+                {
+                    DateTime fiscalFrom = LeaveBLL.FiscalStart(fromDate.Year);
+                    DateTime fiscalTo = fiscalFrom.AddYears(1).AddDays(-1);
+                    _report = ReportEngine.LeaveSummaryByType(fiscalFrom, fiscalTo);
+                }
+                else if (code == "OvertimeSummary")
+                {
+                    _report = ReportEngine.OvertimeSummary(fromDate.Year, fromDate.Month);
+                }
+                else if (code == "Absences")
+                {
+                    _report = ReportEngine.Absences(fromDate, toDate, departmentId, employeeId);
+                }
+                else if (code == "AttendanceExceptions")
+                {
+                    _report = ReportEngine.AttendanceExceptions(fromDate, toDate, employeeId);
+                }
+                else if (code == "AdjustmentsReport")
+                {
+                    _report = ReportEngine.Adjustments(fromDate, toDate, FilterTextValue(), employeeId);
+                }
+                else if (code == "PublicHolidaysReport")
+                {
+                    _report = ReportEngine.PublicHolidays(fromDate.Year);
+                }
+                else if (code == "SchedulesReport")
+                {
+                    _report = ReportEngine.SchedulesReport(fromDate.Year, fromDate.Month);
+                }
+                else if (code == "DevicesReport")
+                {
+                    _report = ReportEngine.DeviceInventory();
+                }
+                else if (code == "EmployeeHistoryReport")
+                {
+                    if (employeeId == null)
+                    {
+                        Theme.ShowInfo("تقرير سجل تغييرات الموظف يتطلب تحديد الموظف في فلتر الموظف.");
+                        return;
+                    }
+                    _report = ReportEngine.EmployeeHistoryReport(fromDate, toDate, employeeId.Value);
+                }
+                else if (code == "UsersReport")
+                {
+                    AppContext.RequireAnyPermission(AdminReportKeys);
+                    _report = ReportEngine.UsersReport();
+                }
+                else if (code == "LoginHistoryReport")
+                {
+                    AppContext.RequireAnyPermission(AdminReportKeys);
+                    _report = ReportEngine.LoginHistoryReport(500);
+                }
+                else if (code == "AuditTrail")
+                {
+                    AppContext.RequireAnyPermission(AdminReportKeys);
+                    _report = ReportEngine.AuditTrail(fromDate, toDate);
                 }
                 else
                 {
@@ -546,9 +692,7 @@ namespace HR.UI.UI
                 Theme.ShowInfo("اعرض التقرير أولاً ثم اطبع.");
                 return;
             }
-            string title = _cboReport.SelectedIndex >= 0 && _cboReport.SelectedIndex < ReportNames.Length
-                ? ReportNames[_cboReport.SelectedIndex]
-                : "تقرير";
+            string title = ReportNames[CurrentReportIndex()];
             GridPrintHelper.Print(_grid, title, _report.PeriodText);
         }
 

@@ -599,6 +599,527 @@ namespace HR.Services
             return report;
         }
 
+        // ---------------- expanded reports (v1.3.2) ----------------
+
+        /// <summary>أرصدة الإجازات — سجل الأرصدة لسنة رصيد عبر كل الموظفين (تصفية اختيارية بموظف).</summary>
+        public static ReportData LeaveBalances(int balanceYear, int? employeeId)
+        {
+            List<LeaveBalanceLedgerView> rows = LeaveDAL.BrowseBalances(balanceYear, null);
+            ReportData report = new ReportData();
+            report.Title = "أرصدة الإجازات";
+            report.PeriodText = "سنة الرصيد: " + balanceYear;
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 150);
+            report.AddColumn("TypeName", "نوع الإجازة", 130);
+            report.AddColumn("YearVal", "السنة", 55);
+            report.AddColumn("QuotaDays", "الرصيد", 60);
+            report.AddColumn("UsedDays", "المستهلك", 60);
+            report.AddColumn("Remaining", "المتبقي", 60);
+
+            long totalQuota = 0;
+            long totalUsed = 0;
+            long totalRemaining = 0;
+            int visible = 0;
+            foreach (LeaveBalanceLedgerView row in rows)
+            {
+                if (employeeId != null && (row.EmployeeId == null || row.EmployeeId.Value != employeeId.Value))
+                {
+                    continue;
+                }
+                report.AddRow(row.EmployeeCode, row.EmployeeName,
+                    row.TypeName ?? "",
+                    row.YearVal == null ? "" : row.YearVal.Value.ToString(),
+                    (row.QuotaDays ?? 0).ToString(), (row.UsedDays ?? 0).ToString(),
+                    (row.Remaining ?? 0).ToString());
+                totalQuota += row.QuotaDays ?? 0;
+                totalUsed += row.UsedDays ?? 0;
+                totalRemaining += row.Remaining ?? 0;
+                visible++;
+            }
+            List<string> totals = EmptyTotals(report);
+            totals[0] = "الإجماليات — عدد السجلات: " + visible;
+            totals[4] = totalQuota.ToString();
+            totals[5] = totalUsed.ToString();
+            totals[6] = totalRemaining.ToString();
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>ملخص الإجازات حسب النوع — تجميع الطلبات المعتمدة داخل نطاق زمني (نافذة السنة المالية).</summary>
+        public static ReportData LeaveSummaryByType(DateTime fromDate, DateTime toDate)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<LeaveRequestView> rows = LeaveDAL.SearchRequests("Approved", null, fromDate, toDate, MaxRows);
+            List<string> typeOrder = new List<string>();
+            Dictionary<string, int> typeCount = new Dictionary<string, int>(StringComparer.Ordinal);
+            Dictionary<string, int> typeDays = new Dictionary<string, int>(StringComparer.Ordinal);
+            Dictionary<string, HashSet<int>> typeEmployees =
+                new Dictionary<string, HashSet<int>>(StringComparer.Ordinal);
+            foreach (LeaveRequestView row in rows)
+            {
+                string type = string.IsNullOrEmpty(row.TypeName) ? "غير محدد" : row.TypeName;
+                if (!typeCount.ContainsKey(type))
+                {
+                    typeOrder.Add(type);
+                    typeCount[type] = 0;
+                    typeDays[type] = 0;
+                    typeEmployees[type] = new HashSet<int>();
+                }
+                typeCount[type] += 1;
+                typeDays[type] += row.DaysCount ?? 0;
+                if (row.EmployeeId != null)
+                {
+                    typeEmployees[type].Add(row.EmployeeId.Value);
+                }
+            }
+
+            ReportData report = new ReportData();
+            report.Title = "ملخص الإجازات حسب النوع";
+            report.PeriodText = "السنة المالية: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd");
+            report.AddColumn("TypeName", "نوع الإجازة", 150);
+            report.AddColumn("Requests", "عدد الطلبات", 80);
+            report.AddColumn("Days", "إجمالي الأيام", 80);
+            report.AddColumn("Employees", "عدد الموظفين", 80);
+
+            long totalRequests = 0;
+            long totalDays = 0;
+            foreach (string type in typeOrder)
+            {
+                report.AddRow(type, typeCount[type].ToString(), typeDays[type].ToString(),
+                    typeEmployees[type].Count.ToString());
+                totalRequests += typeCount[type];
+                totalDays += typeDays[type];
+            }
+            List<string> totals = EmptyTotals(report);
+            totals[0] = "الإجماليات — عدد الأنواع: " + typeOrder.Count;
+            totals[1] = totalRequests.ToString();
+            totals[2] = totalDays.ToString();
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>ملخص الساعات الإضافية لكل موظف لشهر محدد.</summary>
+        public static ReportData OvertimeSummary(int year, int month)
+        {
+            DateTime fromDate = new DateTime(year, month, 1);
+            DateTime toDate = fromDate.AddMonths(1).AddDays(-1);
+            List<OvertimeView> rows = OvertimeDAL.Search(fromDate, toDate, null, null, MaxRows);
+            List<int> employeeOrder = new List<int>();
+            Dictionary<int, string> codes = new Dictionary<int, string>();
+            Dictionary<int, string> names = new Dictionary<int, string>();
+            Dictionary<int, int> employeeCount = new Dictionary<int, int>();
+            Dictionary<int, long> employeeActual = new Dictionary<int, long>();
+            Dictionary<int, long> employeeEffective = new Dictionary<int, long>();
+            foreach (OvertimeView row in rows)
+            {
+                if (row.EmployeeId == null)
+                {
+                    continue;
+                }
+                int empId = row.EmployeeId.Value;
+                if (!employeeCount.ContainsKey(empId))
+                {
+                    employeeOrder.Add(empId);
+                    codes[empId] = row.EmployeeCode ?? "";
+                    names[empId] = row.EmployeeName ?? "";
+                    employeeCount[empId] = 0;
+                    employeeActual[empId] = 0;
+                    employeeEffective[empId] = 0;
+                }
+                employeeCount[empId] += 1;
+                employeeActual[empId] += row.ActualMinutes ?? 0;
+                employeeEffective[empId] += row.EffectiveMinutes ?? 0;
+            }
+
+            ReportData report = new ReportData();
+            report.Title = "ملخص الساعات الإضافية لكل موظف";
+            report.PeriodText = "الشهر: " + year + "-" + month.ToString("00");
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 150);
+            report.AddColumn("Count", "عدد المرّات", 70);
+            report.AddColumn("Actual", "فعلي (د)", 70);
+            report.AddColumn("Effective", "محتسب (د)", 70);
+            report.AddColumn("EffectiveH", "محتسب H:mm", 80);
+
+            long totalCount = 0;
+            long totalActual = 0;
+            long totalEffective = 0;
+            foreach (int empId in employeeOrder)
+            {
+                report.AddRow(codes[empId], names[empId], employeeCount[empId].ToString(),
+                    employeeActual[empId].ToString(), employeeEffective[empId].ToString(),
+                    FormatMinutes((int)employeeEffective[empId]));
+                totalCount += employeeCount[empId];
+                totalActual += employeeActual[empId];
+                totalEffective += employeeEffective[empId];
+            }
+            List<string> totals = EmptyTotals(report);
+            totals[0] = "الإجماليات — عدد الموظفين: " + employeeOrder.Count;
+            totals[2] = totalCount.ToString();
+            totals[3] = totalActual.ToString();
+            totals[4] = totalEffective.ToString();
+            totals[5] = FormatMinutes((int)totalEffective);
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>تفاصيل الغياب — سجلات الحضور بحالة "غائب" داخل نطاق زمني مع فلاتر القسم والموظف.</summary>
+        public static ReportData Absences(DateTime fromDate, DateTime toDate,
+            int? departmentId, int? employeeId)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<AttendanceView> rows = AttendanceDAL.Browse(fromDate, toDate, employeeId,
+                departmentId == 0 ? (int?)null : departmentId, MaxRows);
+            ReportData report = new ReportData();
+            report.Title = "تفاصيل الغياب";
+            report.PeriodText = "الفترة: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd");
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 150);
+            report.AddColumn("DepartmentName", "القسم", 120);
+            report.AddColumn("AttDate", "التاريخ", 85);
+            report.AddColumn("ShiftCode", "الوردية", 60);
+            report.AddColumn("Status", "الحالة", 80);
+
+            foreach (AttendanceView row in rows)
+            {
+                if (!string.Equals(row.Status, "Absent", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                report.AddRow(row.EmployeeCode, row.EmployeeName, row.DepartmentName,
+                    row.AttDate == null ? "" : row.AttDate.Value.ToString("yyyy-MM-dd"),
+                    row.ShiftCode, StatusAr(row.Status));
+            }
+            report.TotalsRow = TotalRow(report, report.Rows.Count, 0, 0, "أيام الغياب:", report.Rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>استثناءات الحضور — مخرجات محرك الحضور والتصحيحات اليدوية داخل نطاق زمني.</summary>
+        public static ReportData AttendanceExceptions(DateTime fromDate, DateTime toDate, int? employeeId)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<AttendanceExceptionView> rows = AttendanceExceptionDAL.Browse(employeeId, fromDate, toDate, null, MaxRows);
+            ReportData report = new ReportData();
+            report.Title = "استثناءات الحضور";
+            report.PeriodText = "الفترة: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd");
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 150);
+            report.AddColumn("AttDate", "التاريخ", 85);
+            report.AddColumn("ExcType", "نوع الاستثناء", 110);
+            report.AddColumn("ExcValue", "القيمة (د)", 70);
+            report.AddColumn("Source", "المصدر", 70);
+
+            foreach (AttendanceExceptionView row in rows)
+            {
+                report.AddRow(row.EmployeeCode, row.EmployeeName,
+                    row.AttDate == null ? "" : row.AttDate.Value.ToString("yyyy-MM-dd"),
+                    ExceptionTypeAr(row.ExcType),
+                    row.ExcValue == null ? "" : row.ExcValue.Value.ToString(),
+                    row.IsManual ? "يدوي" : "المحرك");
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد الاستثناءات:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>تصحيحات الحضور اليدوية داخل نطاق زمني مع فلتر الحالة.</summary>
+        public static ReportData Adjustments(DateTime fromDate, DateTime toDate, string status, int? employeeId)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<AttendanceAdjustmentView> rows = AttendanceAdjustmentDAL.Browse(
+                EmptyToNull(status), employeeId, fromDate, toDate, MaxRows);
+            ReportData report = new ReportData();
+            report.Title = "تصحيحات الحضور اليدوية";
+            report.PeriodText = "الفترة: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd");
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 140);
+            report.AddColumn("AttDate", "تاريخ الحضور", 85);
+            report.AddColumn("AdjustmentType", "نوع التصحيح", 90);
+            report.AddColumn("NewInTime", "القادم الجديد", 70);
+            report.AddColumn("NewOutTime", "المنصرف الجديد", 70);
+            report.AddColumn("NewStatus", "الحالة الجديدة", 80);
+            report.AddColumn("Reason", "السبب", 140);
+            report.AddColumn("Status", "حالة الطلب", 70);
+
+            foreach (AttendanceAdjustmentView row in rows)
+            {
+                report.AddRow(row.EmployeeCode, row.EmployeeName,
+                    row.AttDate == null ? "" : row.AttDate.Value.ToString("yyyy-MM-dd"),
+                    string.Equals(row.AdjustmentType, "Time", StringComparison.Ordinal) ? "تعديل أوقات البصمات" : "تغيير الحالة",
+                    row.NewInTime ?? "", row.NewOutTime ?? "",
+                    StatusAr(row.NewStatus), row.Reason, AdjustmentStatusAr(row.Status));
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد التصحيحات:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>العطل الرسمية لسنة التقويم المختارة (تشمل المتكررة سنويًا).</summary>
+        public static ReportData PublicHolidays(int year)
+        {
+            DateTime fromDate = new DateTime(year, 1, 1);
+            DateTime toDate = new DateTime(year, 12, 31);
+            List<PublicHoliday> rows = PublicHolidayDAL.List(fromDate, toDate);
+            ReportData report = new ReportData();
+            report.Title = "العطل الرسمية";
+            report.PeriodText = "سنة: " + year;
+            report.AddColumn("HolidayDate", "التاريخ", 110);
+            report.AddColumn("HolidayName", "اسم العطلة", 180);
+            report.AddColumn("DayName", "اليوم", 80);
+            report.AddColumn("IsRecurring", "متكررة سنويًا", 80);
+
+            foreach (PublicHoliday row in rows)
+            {
+                report.AddRow(row.IsRecurring == true
+                        ? "كل سنة — " + (row.HolidayDate == null ? "" : row.HolidayDate.Value.ToString("MM-dd"))
+                        : (row.HolidayDate == null ? "" : row.HolidayDate.Value.ToString("yyyy-MM-dd")),
+                    row.HolidayName,
+                    DayNameAr(row.HolidayDate ?? fromDate),
+                    row.IsRecurring == true ? "نعم" : "لا");
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد العطل:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>توزيع الورديات في الجدول الشهري لشهر محدد — ملخص لكل موظف.</summary>
+        public static ReportData SchedulesReport(int year, int month)
+        {
+            MonthlySchedule schedule = ScheduleDAL.GetSchedule(year, month);
+            if (schedule == null)
+            {
+                ReportData empty = new ReportData();
+                empty.Title = "توزيع الورديات الشهري";
+                empty.PeriodText = "الشهر: " + year + "-" + month.ToString("00") + " — لا يوجد جدول محفوظ لهذا الشهر";
+                empty.AddColumn("EmployeeCode", "كود الموظف", 70);
+                return empty;
+            }
+            List<Employee> employees = EmployeeDAL.Search(BuildWideFilter());
+            Dictionary<int, string> employeeNames = new Dictionary<int, string>();
+            Dictionary<int, string> employeeCodes = new Dictionary<int, string>();
+            foreach (Employee employee in employees)
+            {
+                employeeNames[employee.EmployeeId] = employee.FullNameAr;
+                employeeCodes[employee.EmployeeId] = employee.EmployeeCode;
+            }
+            Dictionary<int, string> shiftNames = new Dictionary<int, string>();
+            foreach (Shift shift in ShiftDAL.GetAll(false))
+            {
+                shiftNames[shift.ShiftId] = string.IsNullOrEmpty(shift.ShiftCode) ? shift.ShiftName : shift.ShiftCode;
+            }
+            List<ScheduleDetail> details = ScheduleDAL.GetDetails(schedule.ScheduleId);
+
+            List<int> employeeOrder = new List<int>();
+            Dictionary<int, Dictionary<string, int>> assignment =
+                new Dictionary<int, Dictionary<string, int>>(StringComparer.Ordinal);
+            foreach (ScheduleDetail detail in details)
+            {
+                if (detail.EmployeeId == null)
+                {
+                    continue;
+                }
+                int empId = detail.EmployeeId.Value;
+                if (!assignment.ContainsKey(empId))
+                {
+                    employeeOrder.Add(empId);
+                    assignment[empId] = new Dictionary<string, int>(StringComparer.Ordinal);
+                }
+                string shiftKey = detail.ShiftId == null ? "راحة"
+                    : (shiftNames.ContainsKey(detail.ShiftId.Value) ? shiftNames[detail.ShiftId.Value] : "وردية " + detail.ShiftId.Value);
+                if (!assignment[empId].ContainsKey(shiftKey))
+                {
+                    assignment[empId][shiftKey] = 0;
+                }
+                assignment[empId][shiftKey] += 1;
+            }
+            employeeOrder.Sort(delegate(int a, int b)
+            {
+                return string.CompareOrdinal(
+                    employeeCodes.ContainsKey(a) ? employeeCodes[a] : "",
+                    employeeCodes.ContainsKey(b) ? employeeCodes[b] : "");
+            });
+
+            ReportData report = new ReportData();
+            report.Title = "توزيع الورديات الشهري";
+            report.PeriodText = "الشهر: " + year + "-" + month.ToString("00") +
+                " — حالة الجدول: " + ScheduleStatusAr(schedule.Status);
+            report.AddColumn("EmployeeCode", "كود الموظف", 70);
+            report.AddColumn("EmployeeName", "اسم الموظف", 150);
+            report.AddColumn("Breakdown", "توزيع الورديات", 260);
+            report.AddColumn("AssignedDays", "أيام موزّعة", 70);
+
+            long totalAssigned = 0;
+            foreach (int empId in employeeOrder)
+            {
+                List<string> parts = new List<string>();
+                int assignedDays = 0;
+                foreach (string shiftKey in assignment[empId].Keys)
+                {
+                    parts.Add(shiftKey + ": " + assignment[empId][shiftKey]);
+                    assignedDays += assignment[empId][shiftKey];
+                }
+                string breakdown = string.Join("، ", parts.ToArray());
+                report.AddRow(employeeCodes.ContainsKey(empId) ? employeeCodes[empId] : "",
+                    employeeNames.ContainsKey(empId) ? employeeNames[empId] : "", breakdown, assignedDays.ToString());
+                totalAssigned += assignedDays;
+            }
+            List<string> totals = EmptyTotals(report);
+            totals[0] = "الإجماليات — عدد الموظفين: " + employeeOrder.Count;
+            totals[3] = totalAssigned.ToString();
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>جرد أجهزة البصمة: الحالة، آخر مزامنة، آخر استجابة.</summary>
+        public static ReportData DeviceInventory()
+        {
+            List<Device> rows = DeviceDAL.GetAll(true);
+            ReportData report = new ReportData();
+            report.Title = "جرد أجهزة البصمة";
+            report.PeriodText = "عدد الأجهزة: " + rows.Count;
+            report.AddColumn("DeviceName", "الجهاز", 130);
+            report.AddColumn("IpAddress", "عنوان IP", 90);
+            report.AddColumn("Port", "المنفذ", 55);
+            report.AddColumn("SerialNumber", "الرقم التسلسلي", 110);
+            report.AddColumn("Location", "الموقع", 110);
+            report.AddColumn("Active", "نشط", 55);
+            report.AddColumn("LastSync", "آخر مزامنة", 130);
+            report.AddColumn("LastStatus", "آخر حالة", 90);
+
+            foreach (Device row in rows)
+            {
+                report.AddRow(row.DeviceName, row.IpAddress,
+                    row.Port == null ? "" : row.Port.Value.ToString(),
+                    row.SerialNumber, row.Location,
+                    row.IsActive == true ? "نعم" : "لا",
+                    row.LastSync == null ? "" : row.LastSync.Value.ToString("yyyy-MM-dd HH:mm"),
+                    row.LastStatus ?? "");
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد الأجهزة:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>المستخدمون والأدوار — قائمة إدارِية (بدون أي كلمات مرور).</summary>
+        public static ReportData UsersReport()
+        {
+            List<UserView> rows = UserDAL.ListUsers();
+            ReportData report = new ReportData();
+            report.Title = "المستخدمون والأدوار";
+            report.PeriodText = "عدد المستخدمين: " + rows.Count;
+            report.AddColumn("Username", "اسم المستخدم", 100);
+            report.AddColumn("FullName", "الاسم الكامل", 150);
+            report.AddColumn("RoleName", "الدور", 110);
+            report.AddColumn("DeptName", "القسم", 110);
+            report.AddColumn("Disabled", "معطّل", 55);
+            report.AddColumn("Locked", "مقفول", 55);
+            report.AddColumn("FailedLogins", "محاولات فاشلة", 80);
+            report.AddColumn("LastLogin", "آخر دخول", 130);
+
+            foreach (UserView row in rows)
+            {
+                report.AddRow(row.Username, row.FullName, row.RoleName, row.DeptName,
+                    row.IsDisabled == true ? "نعم" : "لا",
+                    row.IsLocked == true ? "نعم" : "لا",
+                    row.FailedLogins == null ? "" : row.FailedLogins.Value.ToString(),
+                    row.LastLogin == null ? "" : row.LastLogin.Value.ToString("yyyy-MM-dd HH:mm"));
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد المستخدمين:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>سجل محاولات الدخول — آخر 500 محاولة (ناجحة وفاشلة).</summary>
+        public static ReportData LoginHistoryReport(int maxRows)
+        {
+            List<LoginHistory> rows = UserDAL.SearchLoginHistory(null, maxRows);
+            ReportData report = new ReportData();
+            report.Title = "سجل محاولات الدخول";
+            report.PeriodText = "آخر " + maxRows + " محاولة";
+            report.AddColumn("AttemptTime", "الوقت", 130);
+            report.AddColumn("UserId", "معرّف المستخدم", 80);
+            report.AddColumn("Success", "النتيجة", 70);
+            report.AddColumn("MachineName", "الجهاز", 110);
+            report.AddColumn("IpAddress", "عنوان IP", 90);
+
+            long failed = 0;
+            foreach (LoginHistory row in rows)
+            {
+                bool success = row.Success == true;
+                if (!success)
+                {
+                    failed++;
+                }
+                report.AddRow(row.AttemptTime == null ? "" : row.AttemptTime.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                    row.UserId == null ? "" : row.UserId.Value.ToString(),
+                    success ? "ناجح" : "فاشل", row.MachineName, row.IpAddress);
+            }
+            List<string> totals = EmptyTotals(report);
+            totals[0] = "الإجماليات — عدد المحاولات: " + rows.Count;
+            totals[2] = "فاشلة: " + failed;
+            report.TotalsRow = totals;
+            return report;
+        }
+
+        /// <summary>سجل العمليات (التدقيق) — ينطبق عليه صلاحية إدارِية قبل الاستدعاء.</summary>
+        public static ReportData AuditTrail(DateTime fromDate, DateTime toDate)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<AuditLog> rows = AuditDAL.Search(null, null, fromDate, toDate, 2000);
+            ReportData report = new ReportData();
+            report.Title = "سجل العمليات (التدقيق)";
+            report.PeriodText = "الفترة: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd") + " (حد 2000 سجل)";
+            report.AddColumn("ActionTime", "الوقت", 130);
+            report.AddColumn("Username", "المستخدم", 100);
+            report.AddColumn("ActionName", "العملية", 110);
+            report.AddColumn("TableName", "الجدول", 100);
+            report.AddColumn("RecordId", "المعرّف", 60);
+            report.AddColumn("Changes", "التغيير", 220);
+            report.AddColumn("MachineName", "الجهاز", 100);
+
+            foreach (AuditLog row in rows)
+            {
+                string changes = "";
+                if (!string.IsNullOrEmpty(row.OldValue))
+                {
+                    changes += "قبل: " + row.OldValue;
+                }
+                if (!string.IsNullOrEmpty(row.NewValue))
+                {
+                    changes += (changes.Length > 0 ? "  |  " : "") + "بعد: " + row.NewValue;
+                }
+                report.AddRow(row.ActionTime == null ? "" : row.ActionTime.Value.ToString("yyyy-MM-dd HH:mm:ss"),
+                    row.Username, row.ActionName, row.TableName, row.RecordId, changes, row.MachineName);
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد العمليات:", rows.Count.ToString());
+            return report;
+        }
+
+        /// <summary>سجل تغييرات الموظف — يتطلب تحديد موظف (فلتر الموظف في شريط التقرير).</summary>
+        public static ReportData EmployeeHistoryReport(DateTime fromDate, DateTime toDate, int employeeId)
+        {
+            NormalizeRange(ref fromDate, ref toDate);
+            List<EmployeeHistory> rows = EmployeeHistoryDAL.GetForEmployee(employeeId, 1000);
+            ReportData report = new ReportData();
+            report.Title = "سجل تغييرات الموظف";
+            report.PeriodText = "الفترة: " + fromDate.ToString("yyyy-MM-dd") + " → " + toDate.ToString("yyyy-MM-dd");
+            report.AddColumn("ChangeDate", "وقت التغيير", 130);
+            report.AddColumn("ChangeType", "نوع التغيير", 80);
+            report.AddColumn("FieldName", "الحقل", 110);
+            report.AddColumn("OldValue", "القيمة السابقة", 140);
+            report.AddColumn("NewValue", "القيمة الجديدة", 140);
+            report.AddColumn("ChangedBy", "بواسطة", 70);
+
+            foreach (EmployeeHistory row in rows)
+            {
+                if (row.ChangeDate != null &&
+                    (row.ChangeDate.Value.Date < fromDate.AddDays(-1) || row.ChangeDate.Value.Date > toDate))
+                {
+                    continue;
+                }
+                report.AddRow(row.ChangeDate == null ? "" : row.ChangeDate.Value.ToString("yyyy-MM-dd HH:mm"),
+                    HistoryTypeAr(row.ChangeType), row.FieldName, row.OldValue, row.NewValue,
+                    row.ChangedBy == null ? "" : row.ChangedBy.Value.ToString());
+            }
+            report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد التغييرات:", rows.Count.ToString());
+            return report;
+        }
+
         // ---------------- helpers ----------------
 
         /// <summary>Aggregation accumulator for summary reports.</summary>
@@ -767,6 +1288,76 @@ namespace HR.Services
                 return "";
             }
             return names[id.Value];
+        }
+
+        /// <summary>Empty totals row aligned with current columns.</summary>
+        private static List<string> EmptyTotals(ReportData report)
+        {
+            List<string> totals = new List<string>();
+            for (int i = 0; i < report.Columns.Count; i++)
+            {
+                totals.Add(string.Empty);
+            }
+            return totals;
+        }
+
+        /// <summary>Wide employee filter (all, including archived) for group reports.</summary>
+        private static EmployeeSearchFilter BuildWideFilter()
+        {
+            EmployeeSearchFilter filter = new EmployeeSearchFilter();
+            filter.IncludeArchived = true;
+            filter.PageSize = MaxRows;
+            return filter;
+        }
+
+        /// <summary>Arabic label for engine exception types (mirrors AttendanceExceptionBLL).</summary>
+        private static string ExceptionTypeAr(string excType)
+        {
+            if (excType == "BadShift") { return "وردية غير محددة"; }
+            if (excType == "Absent") { return "غياب"; }
+            if (excType == "MissingPunch") { return "بصمة ناقصة"; }
+            if (excType == "ExtraPunch") { return "بصمة زائدة"; }
+            if (excType == "Late") { return "تأخير (دقائق)"; }
+            if (excType == "EarlyLeave") { return "انصراف مبكر (دقائق)"; }
+            if (excType == "OverContinuous") { return "تجاوز ساعات متواصلة"; }
+            return excType ?? "";
+        }
+
+        /// <summary>Arabic label for adjustment request statuses.</summary>
+        private static string AdjustmentStatusAr(string status)
+        {
+            if (status == "Approved") { return "مطبقّ"; }
+            if (status == "Rejected") { return "مرفوض"; }
+            if (status == "Pending") { return "معلّق"; }
+            return status ?? "";
+        }
+
+        /// <summary>Arabic label for monthly schedule statuses.</summary>
+        private static string ScheduleStatusAr(string status)
+        {
+            if (status == "Draft") { return "مسودة"; }
+            if (status == "Approved") { return "معتمد"; }
+            if (status == "Locked") { return "مقفول"; }
+            return status ?? "";
+        }
+
+        /// <summary>Arabic label for employee-history change types.</summary>
+        private static string HistoryTypeAr(string changeType)
+        {
+            if (changeType == "StatusChange") { return "تغيير حالة"; }
+            if (changeType == "Archive") { return "أرشفة"; }
+            return changeType ?? "";
+        }
+
+        /// <summary>Arabic weekday name.</summary>
+        private static string DayNameAr(DateTime date)
+        {
+            string[] names = new string[]
+            {
+                "الأحد", "الاثنين", "الثلاثاء",
+                "الأربعاء", "الخميس", "الجمعة", "السبت"
+            };
+            return names[(int)date.DayOfWeek];
         }
 
         /// <summary>Arabic label for attendance day statuses.</summary>
