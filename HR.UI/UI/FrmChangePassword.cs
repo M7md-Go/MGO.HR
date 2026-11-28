@@ -6,12 +6,18 @@ using HR.Helpers;
 
 namespace HR.UI.UI
 {
-    /// <summary>Change-password dialog with masking and confirmation (rule 21).</summary>
+    /// <summary>
+    /// Change-password dialog with masking and confirmation (rule 21).
+    /// S-01: the (currentPassword) overload opens the dialog in mandatory
+    /// mode — it cannot be dismissed until the change succeeds.
+    /// </summary>
     public class FrmChangePassword : Form
     {
         private TextBox _txtCurrent;
         private TextBox _txtNew;
         private TextBox _txtConfirm;
+        private bool _mandatory;
+        private bool _succeeded;
 
         public FrmChangePassword()
         {
@@ -36,6 +42,27 @@ namespace HR.UI.UI
             Controls.Add(btnSave);
             AcceptButton = btnSave;
             CancelButton = new Button { Visible = false };
+        }
+
+        /// <summary>
+        /// S-01 mandatory mode: the current password (just used for login) is
+        /// prefilled, the dialog explains the obligation, and closing it
+        /// without a successful change is blocked.
+        /// </summary>
+        public FrmChangePassword(string currentPassword)
+            : this()
+        {
+            _mandatory = true;
+            _txtCurrent.Text = currentPassword ?? string.Empty;
+            Text = "تغيير إلزامي لكلمة المرور";
+            FormClosing += delegate(object sender, FormClosingEventArgs e)
+            {
+                if (_mandatory && !_succeeded)
+                {
+                    e.Cancel = true;
+                    Theme.ShowError("يجب تعيين كلمة مرور جديدة قبل المتابعة — لا يمكن إغلاق هذه النافذة.");
+                }
+            };
         }
 
         private TextBox AddField(string caption, int left, int top)
@@ -65,6 +92,7 @@ namespace HR.UI.UI
                     return;
                 }
                 UserBLL.ChangePassword(AppContext.CurrentUser.UserId, _txtCurrent.Text, _txtNew.Text);
+                _succeeded = true;
                 Theme.ShowInfo("تم تغيير كلمة المرور بنجاح.");
             }
             catch (BusinessException expected)

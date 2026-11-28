@@ -351,7 +351,8 @@ IsLocked     YESNO,
 FailedLogins LONG,
 LastLogin    DATETIME,
 CreatedAt    DATETIME,
-CreatedBy    LONG
+CreatedBy    LONG,
+MustChangePassword YESNO
 );
 
 CREATE TABLE UserPermissions (
@@ -769,6 +770,9 @@ DayNumber  LONG NOT NULL,
 OldShiftId LONG,
 NewShiftId LONG
 );
+CREATE INDEX IX_SchedAppr_Sched   ON ScheduleApprovals (ScheduleId);
+CREATE INDEX IX_SchedChg_Status   ON ScheduleChangeRequests (Status);
+CREATE INDEX IX_SchedChgItem_Req  ON ScheduleChangeItems (RequestId);
 CREATE INDEX IX_EmployeeFiles_Emp ON EmployeeFiles (EmployeeId);
 
 INSERT INTO LongLeaveTypes (TypeCode, TypeName, IsLimited, MaxMonths, IsActive, Notes)

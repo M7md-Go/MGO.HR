@@ -194,6 +194,8 @@ namespace HR.UI.UI
                     "اكتملت إعادة الاحتساب:\n" +
                     "— أيام الموظفين المعالَجة: " + summary.DaysProcessed + "\n" +
                     "— أيام تخُطتها تصحيحات يدوية: " + summary.DaysSkippedManual + "\n" +
+                    (summary.PreservedManualDays != null && summary.PreservedManualDays.Count > 0 ?
+                        "— أيام محمية بتعديلات يدوية (لم تُمَس): " + string.Join("، ", summary.PreservedManualDays.ToArray()) + "\n" : "") +
                     "— صفوف حضور مكتوبة: " + summary.AttendanceRows + "\n" +
                     "— حالات مرفوعة: " + summary.Exceptions + "\n" +
                     "— سجلات ساعات إضافية: " + summary.OvertimeRows + "\n" +

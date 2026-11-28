@@ -10,7 +10,7 @@ namespace HR.DAL
     public static class UserDAL
     {
         private const string SelectColumns =
-            "UserId, Username, PwdHash, Salt, FullName, RoleId, DeptId, IsDisabled, IsLocked, FailedLogins, LastLogin, CreatedAt, CreatedBy";
+            "UserId, Username, PwdHash, Salt, FullName, RoleId, DeptId, IsDisabled, IsLocked, FailedLogins, LastLogin, CreatedAt, CreatedBy, MustChangePassword";
 
         private static User MapUser(OleDbDataReader reader)
         {
@@ -28,6 +28,7 @@ namespace HR.DAL
             user.LastLogin = reader.IsDBNull(10) ? (DateTime?)null : reader.GetDateTime(10);
             user.CreatedAt = reader.IsDBNull(11) ? (DateTime?)null : reader.GetDateTime(11);
             user.CreatedBy = reader.IsDBNull(12) ? (int?)null : reader.GetInt32(12);
+            user.MustChangePassword = reader.IsDBNull(13) ? (bool?)null : reader.GetBoolean(13);
             return user;
         }
 
@@ -48,8 +49,8 @@ namespace HR.DAL
 
         public static int Insert(User user)
         {
-            string sql = "INSERT INTO Users (Username, PwdHash, Salt, FullName, RoleId, DeptId, IsDisabled, IsLocked, FailedLogins, CreatedAt, CreatedBy) " +
-                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            string sql = "INSERT INTO Users (Username, PwdHash, Salt, FullName, RoleId, DeptId, IsDisabled, IsLocked, FailedLogins, CreatedAt, CreatedBy, MustChangePassword) " +
+                         "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             return Db.ExecuteInTransaction(delegate(OleDbConnection connection, OleDbTransaction transaction)
             {
                 using (OleDbCommand command = new OleDbCommand(sql, connection, transaction))
@@ -65,6 +66,7 @@ namespace HR.DAL
                     command.Parameters.Add(Db.P(0));
                     command.Parameters.Add(Db.PDateRequired(DateTime.Now));
                     command.Parameters.Add(Db.PNullableId(user.CreatedBy));
+                    command.Parameters.Add(Db.PBool(user.MustChangePassword));
                     command.ExecuteNonQuery();
                 }
                 using (OleDbCommand identity = new OleDbCommand("SELECT @@IDENTITY", connection, transaction))
@@ -111,8 +113,16 @@ namespace HR.DAL
 
         public static void ChangePassword(int userId, string pwdHash, string salt)
         {
-            string sql = "UPDATE Users SET PwdHash = ?, Salt = ?, FailedLogins = 0, IsLocked = 0 WHERE UserId = ?";
+            // S-01: a completed password change clears the forced-change flag.
+            string sql = "UPDATE Users SET PwdHash = ?, Salt = ?, FailedLogins = 0, IsLocked = 0, MustChangePassword = 0 WHERE UserId = ?";
             Db.ExecuteNonQuery(sql, Db.P(pwdHash), Db.P(salt), Db.P(userId));
+        }
+
+        /// <summary>S-01: sets/clears the forced first-login password-change flag.</summary>
+        public static void SetMustChangePassword(int userId, bool mustChange)
+        {
+            Db.ExecuteNonQuery("UPDATE Users SET MustChangePassword = ? WHERE UserId = ?",
+                Db.PBool(mustChange), Db.P(userId));
         }
 
         // ---------------- login history ----------------

@@ -67,8 +67,8 @@ namespace HR.Services
 
             foreach (Employee employee in input.Employees)
             {
-                Dictionary<int, int> cells;
-                if (input.ScheduleCells == null || !input.ScheduleCells.TryGetValue(employee.EmployeeId, out cells))
+                Dictionary<long, int> monthCells;
+                if (input.ScheduleCells == null || !input.ScheduleCells.TryGetValue(employee.EmployeeId, out monthCells))
                 {
                     continue;
                 }
@@ -86,7 +86,7 @@ namespace HR.Services
                     {
                         continue;
                     }
-                    punchCursor = CalculateDay(input, output, employee.EmployeeId, date, cells,
+                    punchCursor = CalculateDay(input, output, employee.EmployeeId, date, monthCells,
                         punches, punchCursor, leaves, missions, holidayByDate, holidayByMonthDay);
                 }
             }
@@ -94,13 +94,16 @@ namespace HR.Services
         }
 
         private static int CalculateDay(EngineCalculationInput input, EngineCalculationOutput output,
-            int employeeId, DateTime date, Dictionary<int, int> cells, List<FingerprintLog> punches, int punchCursor,
+            int employeeId, DateTime date, Dictionary<long, int> cells, List<FingerprintLog> punches, int punchCursor,
             List<LeaveRequest> leaves, List<Mission> missions,
             Dictionary<string, PublicHoliday> holidayByDate, Dictionary<string, PublicHoliday> holidayByMonthDay)
         {
             int shiftId;
             Shift shift = null;
-            if (cells.TryGetValue(date.Day, out shiftId))
+            // MODERNTIME 2.0 P0 fix: cells are keyed by full date (ticks), not
+            // day-of-month — multi-month windows must resolve each date to its
+            // own month's shift.
+            if (cells.TryGetValue(date.Ticks, out shiftId))
             {
                 if (input.ShiftIndex == null || !input.ShiftIndex.TryGetValue(shiftId, out shift))
                 {

@@ -27,6 +27,8 @@ namespace HR.BLL
         public int OvertimeRows { get; set; }
         /// <summary>Total wall time in milliseconds.</summary>
         public int DurationMs { get; set; }
+        /// <summary>E-01: readable "employee @ date" list of manual days preserved untouched (audit + operator report).</summary>
+        public List<string> PreservedManualDays { get; set; }
     }
 
     /// <summary>
@@ -58,7 +60,11 @@ namespace HR.BLL
             }
 
             Stopwatch stopwatch = Stopwatch.StartNew();
-            Dictionary<int, Dictionary<int, int>> cells = new Dictionary<int, Dictionary<int, int>>();
+            // MODERNTIME 2.0 P0 fix: cell maps of DIFFERENT months are merged
+            // here, so the inner key must be the full date (ticks) — day-of-month
+            // keys collided across months and silently reused the later month's
+            // shift for every earlier month in the window.
+            Dictionary<int, Dictionary<long, int>> cells = new Dictionary<int, Dictionary<long, int>>();
             Dictionary<int, Shift> shiftIndex = new Dictionary<int, Shift>();
             List<string> processedKeys = new List<string>();
 
@@ -72,10 +78,10 @@ namespace HR.BLL
                 }
                 foreach (KeyValuePair<int, Dictionary<int, int>> employeePair in month.Cells)
                 {
-                    Dictionary<int, int> employeeCells;
+                    Dictionary<long, int> employeeCells;
                     if (!cells.TryGetValue(employeePair.Key, out employeeCells))
                     {
-                        employeeCells = new Dictionary<int, int>();
+                        employeeCells = new Dictionary<long, int>();
                         cells[employeePair.Key] = employeeCells;
                     }
                     foreach (KeyValuePair<int, int> dayPair in employeePair.Value)
@@ -85,7 +91,7 @@ namespace HR.BLL
                         {
                             continue;
                         }
-                        employeeCells[dayPair.Key] = dayPair.Value;
+                        employeeCells[cellDate.Ticks] = dayPair.Value;
                         processedKeys.Add(employeePair.Key + "|" + cellDate.Ticks);
                     }
                 }
@@ -131,6 +137,25 @@ namespace HR.BLL
             input.Rules = LoadRules();
             summary.DaysSkippedManual = input.SkipKeys.Count;
 
+            // E-01: manual days are preserved untouched — declare exactly which
+            // employee-days were protected so the operator and the audit trail
+            // both state the modifications that were kept.
+            Dictionary<int, string> codeById = new Dictionary<int, string>();
+            foreach (Employee employee in employees)
+            {
+                codeById[employee.EmployeeId] = employee.EmployeeCode;
+            }
+            List<string> preserved = new List<string>();
+            foreach (string skipKey in input.SkipKeys)
+            {
+                int skipSeparator = skipKey.IndexOf('|');
+                int skipEmployeeId = Convert.ToInt32(skipKey.Substring(0, skipSeparator));
+                DateTime skipDate = new DateTime(long.Parse(skipKey.Substring(skipSeparator + 1)));
+                preserved.Add((codeById.ContainsKey(skipEmployeeId) ? codeById[skipEmployeeId] :
+                    skipEmployeeId.ToString()) + " @ " + skipDate.ToString("yyyy-MM-dd"));
+            }
+            summary.PreservedManualDays = preserved;
+
             EngineCalculationOutput output = AttendanceEngine.Calculate(input);
             if (!input.Rules.OvertimeRequiresApprove)
             {
@@ -143,15 +168,19 @@ namespace HR.BLL
                 }
             }
             AttendanceDAL.WriteEngineResults(output.AttendanceRows, output.Exceptions,
-                output.OvertimeRows, processedKeys);
+                output.OvertimeRows, processedKeys, input.SkipKeys);
 
             summary.AttendanceRows = output.AttendanceRows.Count;
             summary.Exceptions = output.Exceptions.Count;
             summary.OvertimeRows = output.OvertimeRows.Count;
             summary.DurationMs = (int)stopwatch.ElapsedMilliseconds;
+            string preservedSample = preserved.Count <= 15 ?
+                string.Join("; ", preserved.ToArray()) :
+                string.Join("; ", preserved.GetRange(0, 15).ToArray()) + " … (" + preserved.Count + " إجمالًا)";
             AuditBLL.Log("Attendance.Recalculate", "Attendance", null, null,
                 "From=" + fromDate.ToString("yyyy-MM-dd") + ", To=" + toDate.ToString("yyyy-MM-dd") +
                 ", Days=" + summary.DaysProcessed + ", SkippedManual=" + summary.DaysSkippedManual +
+                ", Preserved=[" + preservedSample + "]" +
                 ", Attendance=" + summary.AttendanceRows + ", Exceptions=" + summary.Exceptions +
                 ", Overtime=" + summary.OvertimeRows + ", Ms=" + summary.DurationMs);
             return summary;

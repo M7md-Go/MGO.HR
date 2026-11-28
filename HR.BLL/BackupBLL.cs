@@ -76,6 +76,13 @@ namespace HR.BLL
             string fileName = FilePrefix + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".mdb";
             string targetPath = Path.Combine(folder, fileName);
             File.Copy(databasePath, targetPath, true);
+
+            // B-01: a File.Copy of a live Jet database is NOT a guarantee —
+            // the copy is verified by opening it as a Jet database before it
+            // is trusted. A failed copy is recorded as Failed (and never
+            // counted by LastBackupTime, so auto-backup will retry) and the
+            // caller gets an explicit error instead of a silent bad backup.
+            string verifyError = VerifyBackupFile(targetPath);
             FileInfo info = new FileInfo(targetPath);
 
             BackupLog backup = new BackupLog();
@@ -84,8 +91,15 @@ namespace HR.BLL
             backup.FileSize = (int)Math.Min(info.Length, int.MaxValue);
             backup.CreatedAt = DateTime.Now;
             backup.CreatedBy = AppContext.CurrentUser != null ? (int?)AppContext.CurrentUser.UserId : null;
-            backup.Status = "Completed";
+            backup.Status = verifyError == null ? "Completed" : "Failed";
             BackupDAL.Insert(backup);
+
+            if (verifyError != null)
+            {
+                AuditBLL.Log("Backup.VerifyFailed", "BackupLogs", backupType, "Completed", verifyError);
+                throw new BusinessException("فشل التحقق من النسخة الاحتياطية بعد إنشائها — " + verifyError +
+                    " تم تسجيل النسخة التالفة في السجل؛ أعد المحاولة وأغلق شاشات الكتابة إن تكرر.");
+            }
 
             AuditBLL.Log("Backup.Create", "BackupLogs", backupType, null, targetPath);
             Logger.LogInfo("BackupBLL.Backup", backupType + " -> " + targetPath);

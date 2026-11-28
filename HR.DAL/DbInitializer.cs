@@ -45,6 +45,10 @@ namespace HR.DAL
                 EnsureColumn(connection, "Employees", "NominalHireDate", "DATETIME");
                 EnsureColumn(connection, "Employees", "JobKeepDate", "DATETIME");
                 EnsureColumn(connection, "LeaveRequests", "RejectReason", "LONGCHAR");
+                // S-01: forced first-login password change (bootstrap admin +
+                // admin resets). Legacy databases get the column here; the
+                // default-password check at login covers rows created before it.
+                EnsureColumn(connection, "Users", "MustChangePassword", "YESNO");
 
                 if (!TableExists(connection, "LongLeaveTypes"))
                 {
@@ -304,6 +308,37 @@ namespace HR.DAL
                             "', Now())");
                     }
                 }
+                // DB-03 (Phase 4): index verification for databases upgraded in
+                // place. Every non-unique index from ModernTime_Schema.sql is
+                // re-created here when missing, so a legacy .mdb that predates
+                // the schema's index list reaches full hot-path coverage at
+                // startup without any manual step. UNIQUE indexes are excluded
+                // on purpose: creating IX_Emp_Enroll could fail on legacy data
+                // that already contains duplicate enroll numbers, and adding a
+                // UNIQUE constraint is a data change, not a safe upgrade.
+                // Rollback for any index created here: DROP INDEX <name> ON <table>.
+                EnsureIndex(connection, "FingerprintLogs", "IX_LogTime", "LogTime");
+                EnsureIndex(connection, "FingerprintLogs", "IX_LogEmpDate", "EmployeeId, LogTime");
+                EnsureIndex(connection, "Employees", "IX_Emp_Dept", "DepartmentId");
+                EnsureIndex(connection, "Employees", "IX_Emp_Name", "FullNameAr");
+                EnsureIndex(connection, "Employees", "IX_Emp_Status", "Status, IsDeleted");
+                EnsureIndex(connection, "Attendance", "IX_Att_Date", "AttDate");
+                EnsureIndex(connection, "AttendanceExceptions", "IX_Exc_EmpDate", "EmployeeId, AttDate");
+                EnsureIndex(connection, "AttendanceAdjustments", "IX_Adj_Pending", "Status");
+                EnsureIndex(connection, "Overtime", "IX_OT_Date", "OtDate");
+                EnsureIndex(connection, "Penalties", "IX_PenaltyEmp", "EmployeeId, PenaltyDate");
+                EnsureIndex(connection, "AuditLogs", "IX_Audit_Time", "ActionTime");
+                EnsureIndex(connection, "AuditLogs", "IX_Audit_Table", "TableName, RecordId");
+                EnsureIndex(connection, "AuditLogs", "IX_Audit_User", "UserId, ActionTime");
+                EnsureIndex(connection, "LoginHistory", "IX_Login_User", "UserId, AttemptTime");
+                EnsureIndex(connection, "EmployeeHistory", "IX_Hist_Emp", "EmployeeId, ChangeDate");
+                EnsureIndex(connection, "LongLeaves", "IX_LongLeave_Emp", "EmployeeId, FromDate");
+                EnsureIndex(connection, "LongLeaves", "IX_LongLeave_Type", "TypeId");
+                EnsureIndex(connection, "LongLeaves", "IX_LongLeave_St", "Status, FromDate");
+                EnsureIndex(connection, "EmployeeFiles", "IX_EmployeeFiles_Emp", "EmployeeId");
+                EnsureIndex(connection, "ScheduleApprovals", "IX_SchedAppr_Sched", "ScheduleId");
+                EnsureIndex(connection, "ScheduleChangeRequests", "IX_SchedChg_Status", "Status");
+                EnsureIndex(connection, "ScheduleChangeItems", "IX_SchedChgItem_Req", "RequestId");
             }
         }
 
@@ -363,6 +398,35 @@ namespace HR.DAL
             {
                 command.ExecuteNonQuery();
             }
+        }
+
+        /// <summary>
+        /// DB-03 (Phase 4): verifies that a named non-unique index exists on an
+        /// upgraded legacy database and creates it when missing. Idempotent and
+        /// additive-only: it never modifies or deletes data, and it skips tables
+        /// that do not exist (those get their indexes atomically at creation).
+        /// Rollback for anything created here is DROP INDEX &lt;name&gt; ON &lt;table&gt;.
+        /// </summary>
+        private static void EnsureIndex(OleDbConnection connection, string tableName, string indexName, string columns)
+        {
+            if (!TableExists(connection, tableName))
+            {
+                return;
+            }
+            DataTable indexes = connection.GetOleDbSchemaTable(OleDbSchemaGuid.Indexes,
+                new object[] { null, null, tableName, null, null });
+            if (indexes != null)
+            {
+                foreach (DataRow row in indexes.Rows)
+                {
+                    object nameValue = row["INDEX_NAME"];
+                    if (nameValue != null && string.Equals(Convert.ToString(nameValue), indexName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+            ExecuteUpgrade(connection, "CREATE INDEX " + indexName + " ON " + tableName + " (" + columns + ")");
         }
 
         /// <summary>Creates an empty Access 2002-2003 (Jet 4.0) file via ADOX.</summary>
