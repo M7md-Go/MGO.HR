@@ -76,10 +76,10 @@ namespace HR.BLL
                 }
                 foreach (KeyValuePair<int, Dictionary<int, int>> employeePair in month.Cells)
                 {
-                    Dictionary<int, int> employeeCells;
+                    Dictionary<long, int> employeeCells;
                     if (!cells.TryGetValue(employeePair.Key, out employeeCells))
                     {
-                        employeeCells = new Dictionary<int, int>();
+                        employeeCells = new Dictionary<long, int>();
                         cells[employeePair.Key] = employeeCells;
                     }
                     foreach (KeyValuePair<int, int> dayPair in employeePair.Value)

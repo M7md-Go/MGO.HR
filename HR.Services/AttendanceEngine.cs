@@ -67,7 +67,7 @@ namespace HR.Services
 
             foreach (Employee employee in input.Employees)
             {
-                Dictionary<int, Dictionary<long, int>> monthCells;
+                Dictionary<long, int> monthCells;
                 if (input.ScheduleCells == null || !input.ScheduleCells.TryGetValue(employee.EmployeeId, out monthCells))
                 {
                     continue;
