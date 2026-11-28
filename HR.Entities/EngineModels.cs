@@ -38,8 +38,12 @@ namespace HR.Entities
         public DateTime ToDate { get; set; }
         /// <summary>Employees participating (including archived so history stays complete).</summary>
         public List<Employee> Employees { get; set; }
-        /// <summary>Schedule cells: EmployeeId → (day-of-month → ShiftId).</summary>
-        public Dictionary<int, Dictionary<int, int>> ScheduleCells { get; set; }
+        /// <summary>Schedule cells: EmployeeId → (full-date ticks → ShiftId).
+        /// MODERNTIME 2.0 P0 fix: keyed by the FULL DATE (DateTime.Ticks), never by
+        /// day-of-month — a recalculation spanning several months must not let
+        /// month N+1's day numbers overwrite month N's shifts (employee + full
+        /// date identity, per the 2.0 audit).</summary>
+        public Dictionary<int, Dictionary<long, int>> ScheduleCells { get; set; }
         /// <summary>Shift index by ShiftId (only active shifts referenced by the schedule).</summary>
         public Dictionary<int, Shift> ShiftIndex { get; set; }
         /// <summary>Mapped fingerprint punches in an extended window, ordered by EmployeeId then LogTime.</summary>

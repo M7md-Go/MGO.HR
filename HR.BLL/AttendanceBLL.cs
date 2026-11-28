@@ -58,7 +58,11 @@ namespace HR.BLL
             }
 
             Stopwatch stopwatch = Stopwatch.StartNew();
-            Dictionary<int, Dictionary<int, int>> cells = new Dictionary<int, Dictionary<int, int>>();
+            // MODERNTIME 2.0 P0 fix: cell maps of DIFFERENT months are merged
+            // here, so the inner key must be the full date (ticks) — day-of-month
+            // keys collided across months and silently reused the later month's
+            // shift for every earlier month in the window.
+            Dictionary<int, Dictionary<long, int>> cells = new Dictionary<int, Dictionary<long, int>>();
             Dictionary<int, Shift> shiftIndex = new Dictionary<int, Shift>();
             List<string> processedKeys = new List<string>();
 
@@ -85,7 +89,7 @@ namespace HR.BLL
                         {
                             continue;
                         }
-                        employeeCells[dayPair.Key] = dayPair.Value;
+                        employeeCells[cellDate.Ticks] = dayPair.Value;
                         processedKeys.Add(employeePair.Key + "|" + cellDate.Ticks);
                     }
                 }
