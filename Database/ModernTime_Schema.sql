@@ -351,7 +351,8 @@ IsLocked     YESNO,
 FailedLogins LONG,
 LastLogin    DATETIME,
 CreatedAt    DATETIME,
-CreatedBy    LONG
+CreatedBy    LONG,
+MustChangePassword YESNO
 );
 
 CREATE TABLE UserPermissions (

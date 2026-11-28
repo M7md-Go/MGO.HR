@@ -45,6 +45,10 @@ namespace HR.DAL
                 EnsureColumn(connection, "Employees", "NominalHireDate", "DATETIME");
                 EnsureColumn(connection, "Employees", "JobKeepDate", "DATETIME");
                 EnsureColumn(connection, "LeaveRequests", "RejectReason", "LONGCHAR");
+                // S-01: forced first-login password change (bootstrap admin +
+                // admin resets). Legacy databases get the column here; the
+                // default-password check at login covers rows created before it.
+                EnsureColumn(connection, "Users", "MustChangePassword", "YESNO");
 
                 if (!TableExists(connection, "LongLeaveTypes"))
                 {

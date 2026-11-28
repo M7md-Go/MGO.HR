@@ -91,8 +91,27 @@ namespace HR.UI.UI
         {
             try
             {
-                User user = UserBLL.Login(_txtUsername.Text, _txtPassword.Text);
+                string enteredPassword = _txtPassword.Text;
+                User user = UserBLL.Login(_txtUsername.Text, enteredPassword);
                 _txtPassword.Clear();
+
+                // S-01: no default/flagged password reaches the application
+                // shell — the change dialog is mandatory and blocking.
+                if (user.MustChangePassword == true)
+                {
+                    Theme.ShowInfo("كلمة المرور الحالية افتراضية أو معلَّمة للتغيير الإلزامي —\nيجب تعيين كلمة مرور جديدة قبل الدخول إلى النظام.");
+                    using (FrmChangePassword change = new FrmChangePassword(enteredPassword))
+                    {
+                        change.ShowDialog(this);
+                    }
+                    if (UserBLL.MustStillChangePassword(user.UserId))
+                    {
+                        AppContext.ClearSession();
+                        Theme.ShowError("لم تُنجَز عملية تغيير كلمة المرور — لن يُسمح بالدخول بكلمة المرور الافتراضية.");
+                        return;
+                    }
+                }
+
                 Theme.ShowInfo("مرحبًا " + (string.IsNullOrEmpty(user.FullName) ? user.Username : user.FullName));
                 DialogResult = DialogResult.OK;
                 Close();

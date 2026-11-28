@@ -57,6 +57,19 @@ namespace HR.BLL
             UserDAL.RecordSuccessfulLogin(user.UserId);
             RecordLogin(user.UserId, true);
 
+            // S-01: forced password change — either the stored flag is set
+            // (bootstrap admin / admin reset) or the login password still is
+            // the known bootstrap default (covers databases upgraded before
+            // the MustChangePassword column existed). No default password may
+            // reach the application shell.
+            bool mustChange = user.MustChangePassword == true ||
+                PasswordHasher.Verify(DefaultAdminPassword, user.Salt, user.PwdHash);
+            user.MustChangePassword = mustChange;
+            if (mustChange)
+            {
+                Logger.LogInfo("UserBLL.Login", "forced password change for user=" + username);
+            }
+
             bool isAdmin = false;
             if (user.RoleId != null)
             {
@@ -136,6 +149,7 @@ namespace HR.BLL
             admin.RoleId = adminRole.RoleId;
             admin.IsDisabled = false;
             admin.IsLocked = false;
+            admin.MustChangePassword = true;
             admin.CreatedAt = DateTime.Now;
             int userId = UserDAL.Insert(admin);
             Logger.LogInfo("UserBLL.InitializeFirstAdmin", "bootstrap admin created id=" + userId);
@@ -414,6 +428,9 @@ namespace HR.BLL
             ValidatePassword(newPassword);
             string salt = PasswordHasher.NewSalt();
             UserDAL.ChangePassword(userId, PasswordHasher.Hash(newPassword, salt), salt);
+            // S-01: an admin-set password is temporary — the user must change
+            // it at the next login (the admin never knows the final secret).
+            UserDAL.SetMustChangePassword(userId, true);
             UserDAL.UnlockUser(userId);
             AuditBLL.Log("Users.ResetPassword", "Users", userId.ToString(), null, user.Username);
         }
@@ -473,9 +490,37 @@ namespace HR.BLL
                 granted == null ? "Default" : (granted.Value ? "Granted" : "Revoked"));
         }
 
+        /// <summary>
+        /// S-01: the known bootstrap default can never be (re)chosen as a
+        /// password — first-login change must lead away from it permanently.
+        /// </summary>
+        private static bool IsDefaultPassword(string password)
+        {
+            return string.Equals(password, DefaultAdminPassword, StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// S-01 post-check for the forced-change dialog: fresh read of the
+        /// current session user (self-check only — no permission needed) to
+        /// confirm the flag was actually cleared by a successful change.
+        /// </summary>
+        public static bool MustStillChangePassword(int userId)
+        {
+            if (!AppContext.IsAuthenticated || AppContext.CurrentUser.UserId != userId)
+            {
+                throw new BusinessException("الجلسة غير مسجّلة الدخول.");
+            }
+            User fresh = UserDAL.GetById(userId);
+            return fresh == null || fresh.MustChangePassword == true;
+        }
+
         /// <summary>Password policy: at least 8 characters, letters and digits (rule 21).</summary>
         private static void ValidatePassword(string password)
         {
+            if (IsDefaultPassword(password))
+            {
+                throw new BusinessException("لا يجوز استخدام كلمة المرور الافتراضية — اختر كلمة مرور جديدة خاصة بك.");
+            }
             if (string.IsNullOrWhiteSpace(password) || password.Length < 8)
             {
                 throw new BusinessException("كلمة المرور يجب أن تكون 8 أحرف على الأقل.");

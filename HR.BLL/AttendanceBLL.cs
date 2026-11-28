@@ -27,6 +27,8 @@ namespace HR.BLL
         public int OvertimeRows { get; set; }
         /// <summary>Total wall time in milliseconds.</summary>
         public int DurationMs { get; set; }
+        /// <summary>E-01: readable "employee @ date" list of manual days preserved untouched (audit + operator report).</summary>
+        public List<string> PreservedManualDays { get; set; }
     }
 
     /// <summary>
@@ -135,6 +137,25 @@ namespace HR.BLL
             input.Rules = LoadRules();
             summary.DaysSkippedManual = input.SkipKeys.Count;
 
+            // E-01: manual days are preserved untouched — declare exactly which
+            // employee-days were protected so the operator and the audit trail
+            // both state the modifications that were kept.
+            Dictionary<int, string> codeById = new Dictionary<int, string>();
+            foreach (Employee employee in employees)
+            {
+                codeById[employee.EmployeeId] = employee.EmployeeCode;
+            }
+            List<string> preserved = new List<string>();
+            foreach (string skipKey in input.SkipKeys)
+            {
+                int skipSeparator = skipKey.IndexOf('|');
+                int skipEmployeeId = Convert.ToInt32(skipKey.Substring(0, skipSeparator));
+                DateTime skipDate = new DateTime(long.Parse(skipKey.Substring(skipSeparator + 1)));
+                preserved.Add((codeById.ContainsKey(skipEmployeeId) ? codeById[skipEmployeeId] :
+                    skipEmployeeId.ToString()) + " @ " + skipDate.ToString("yyyy-MM-dd"));
+            }
+            summary.PreservedManualDays = preserved;
+
             EngineCalculationOutput output = AttendanceEngine.Calculate(input);
             if (!input.Rules.OvertimeRequiresApprove)
             {
@@ -147,15 +168,19 @@ namespace HR.BLL
                 }
             }
             AttendanceDAL.WriteEngineResults(output.AttendanceRows, output.Exceptions,
-                output.OvertimeRows, processedKeys);
+                output.OvertimeRows, processedKeys, input.SkipKeys);
 
             summary.AttendanceRows = output.AttendanceRows.Count;
             summary.Exceptions = output.Exceptions.Count;
             summary.OvertimeRows = output.OvertimeRows.Count;
             summary.DurationMs = (int)stopwatch.ElapsedMilliseconds;
+            string preservedSample = preserved.Count <= 15 ?
+                string.Join("; ", preserved.ToArray()) :
+                string.Join("; ", preserved.GetRange(0, 15).ToArray()) + " … (" + preserved.Count + " إجمالًا)";
             AuditBLL.Log("Attendance.Recalculate", "Attendance", null, null,
                 "From=" + fromDate.ToString("yyyy-MM-dd") + ", To=" + toDate.ToString("yyyy-MM-dd") +
                 ", Days=" + summary.DaysProcessed + ", SkippedManual=" + summary.DaysSkippedManual +
+                ", Preserved=[" + preservedSample + "]" +
                 ", Attendance=" + summary.AttendanceRows + ", Exceptions=" + summary.Exceptions +
                 ", Overtime=" + summary.OvertimeRows + ", Ms=" + summary.DurationMs);
             return summary;

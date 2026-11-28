@@ -42,5 +42,13 @@ namespace HR.Entities
 
         /// <summary>CreatedBy.</summary>
         public int? CreatedBy { get; set; }
+
+        /// <summary>
+        /// S-01: YESNO — when true the user is blocked from using the system
+        /// until he changes his password (forced first-login change). Also set
+        /// (at runtime) when the login password matches the known bootstrap
+        /// default, which covers databases upgraded before this column existed.
+        /// </summary>
+        public bool? MustChangePassword { get; set; }
     }
 }

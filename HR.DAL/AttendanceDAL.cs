@@ -189,8 +189,11 @@ namespace HR.DAL
         /// upserts Attendance and auto Overtime rows.
         /// </summary>
         /// <param name="processedKeys">"EmployeeId|dateTicks" of every employee-day the engine just recalculated.</param>
+        /// <param name="preservedKeys">"EmployeeId|dateTicks" of employee-days owned by a manual correction (E-01):
+        /// their engine-owned exceptions are NOT cleared — manual-day exceptions survive recalculation.</param>
         public static void WriteEngineResults(List<Attendance> attendanceRows,
-            List<AttendanceException> exceptions, List<Overtime> overtimeRows, List<string> processedKeys)
+            List<AttendanceException> exceptions, List<Overtime> overtimeRows, List<string> processedKeys,
+            List<string> preservedKeys)
         {
             using (OleDbConnection connection = Db.CreateConnection())
             using (OleDbTransaction transaction = connection.BeginTransaction())
@@ -224,6 +227,13 @@ namespace HR.DAL
 
                 foreach (string key in processedKeys)
                 {
+                    // E-01: days owned by a manual correction keep their
+                    // exception rows — the engine never recalculated them,
+                    // so deleting would silently drop preserved state.
+                    if (preservedKeys != null && preservedKeys.Contains(key))
+                    {
+                        continue;
+                    }
                     int separatorIndex = key.IndexOf('|');
                     clearCommand.Parameters[0].Value = Convert.ToInt32(key.Substring(0, separatorIndex));
                     clearCommand.Parameters[1].Value = new DateTime(long.Parse(key.Substring(separatorIndex + 1)));
