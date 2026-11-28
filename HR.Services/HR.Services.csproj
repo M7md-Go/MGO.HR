@@ -46,6 +46,10 @@
       <Project>{eab36d0f-d9b1-4439-9343-1356a4560339}</Project>
       <Name>HR.DAL</Name>
     </ProjectReference>
+    <ProjectReference Include="..\HR.Helpers\HR.Helpers.csproj">
+      <Project>{8270f338-f987-4c9f-ab2a-6b12b203caa6}</Project>
+      <Name>HR.Helpers</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

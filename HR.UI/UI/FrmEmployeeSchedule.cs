@@ -97,7 +97,7 @@ namespace HR.UI.UI
             _cboMonth.Margin = new Padding(3, 8, 3, 0);
             for (int month = 1; month <= 12; month++)
             {
-                _cboMonth.Items.Add(ArabicMonth(month));
+                _cboMonth.Items.Add(ArabicDates.MonthName(month));
             }
             _cboMonth.SelectedIndex = DateTime.Now.Month - 1;
 
@@ -181,41 +181,20 @@ namespace HR.UI.UI
             _btnSave.Enabled = AppContext.HasPermission("Schedule.Edit");
         }
 
-        /// <summary>Arabic month name for the toolbar combo.</summary>
-        private static string ArabicMonth(int month)
-        {
-            string[] names = new string[] { "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-                "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر" };
-            return names[month - 1];
-        }
-
-        /// <summary>Arabic weekday name for the grid.</summary>
-        private static string DayNameAr(DayOfWeek day)
-        {
-            string[] names = new string[] { "الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت" };
-            return names[(int)day];
-        }
-
-        /// <summary>Resolves the free-text box to one employee (code, name or id).</summary>
+        /// <summary>
+        /// Resolves the free-text box to one employee (code, name or id) —
+        /// delegated to the shared EmployeeResolve.FromText (Phase 3, R-01):
+        /// exact code matched first, unique name accepted, ambiguity reported
+        /// instead of silently taking the first match.
+        /// </summary>
         private bool ResolveEmployee(out string error)
         {
-            string text = (_txtEmployee.Text ?? string.Empty).Trim();
-            if (text.Length == 0)
+            _employee = EmployeeResolve.FromText(_txtEmployee.Text, out error);
+            if (_employee == null)
             {
-                error = "اكتب رقم الموظف أو اسمه أولاً.";
+                error = error ?? "اكتب رقم الموظف أو اسمه أولاً.";
                 return false;
             }
-            EmployeeSearchFilter filter = new EmployeeSearchFilter();
-            filter.Text = text;
-            filter.IncludeArchived = true;
-            filter.PageSize = 1;
-            List<Employee> matches = EmployeeBLL.Search(filter);
-            if (matches.Count == 0)
-            {
-                error = "لم يتم العثور على موظف مطابق.";
-                return false;
-            }
-            _employee = matches[0];
             _lblEmployeeName.Text = _employee.EmployeeCode + " - " + _employee.FullNameAr;
             error = null;
             return true;
@@ -260,27 +239,11 @@ namespace HR.UI.UI
                 }
 
                 // public holidays get a red tint on the date cell (RosterCore lesson)
+                // Phase 3 (R-02): shared holiday-day set (explicit + recurring).
                 HashSet<int> holidayDays = new HashSet<int>();
                 try
                 {
-                    DateTime first = new DateTime(year, month, 1);
-                    DateTime last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
-                    foreach (PublicHoliday holiday in PublicHolidayBLL.List(first, last))
-                    {
-                        if (holiday.HolidayDate == null)
-                        {
-                            continue;
-                        }
-                        DateTime date = holiday.HolidayDate.Value;
-                        if (date.Year == year && date.Month == month)
-                        {
-                            holidayDays.Add(date.Day);
-                        }
-                        else if (holiday.IsRecurring == true && date.Month == month && date.Day <= DateTime.DaysInMonth(year, month))
-                        {
-                            holidayDays.Add(date.Day);
-                        }
-                    }
+                    holidayDays = PublicHolidayBLL.HolidayDays(year, month);
                 }
                 catch (Exception unexpected)
                 {
@@ -313,7 +276,7 @@ namespace HR.UI.UI
                     DateTime date = new DateTime(year, month, day);
                     row.Cells["Day"].Value = day;
                     row.Cells["Date"].Value = date.ToString("yyyy-MM-dd");
-                    row.Cells["Weekday"].Value = DayNameAr(date.DayOfWeek);
+                    row.Cells["Weekday"].Value = ArabicDates.DayName(date.DayOfWeek);
                     row.Cells["Date"].Style.BackColor = holidayDays.Contains(day) ? Theme.StatusBad : Color.Empty;
                     int shiftId;
                     row.Cells["Shift"].Value = employeeCells.TryGetValue(day, out shiftId) ?

@@ -12,10 +12,10 @@
 
 | المعرّف | نوع التكرار | الملفات | الخطورة | القرار |
 |---------|-------------|---------|---------|--------|
-| R-01 | تحديد الموظف من نص حر | FrmEmployeeSchedule.cs:200، FrmScheduleChanges.cs:647 مقابل EmployeeResolve.cs (المُوحَّد المستخدم في 6 نوافذ) | P2 (خطر اختيار موظف خاطئ بصمت) | توحيد على `EmployeeResolve.FromText` |
-| R-02 | حلقة تلوين العطل الرسمية | FrmMonthlySchedule.cs:453–470، FrmEmployeeSchedule.cs:262–285 (متطابقة حرفيًا تقريبًا) | P3 | مساعد مشترك `PublicHolidayBLL.HolidayDays(first, last)` |
-| R-03 | أسماء الأشهر/الأيام العربية | FrmMonthlySchedule.cs:22، FrmEmployeeSchedule.cs:185+193، ReportEngine.cs:1353 | P3 | مساعد واحد (Helpers) |
-| R-04 | نافذة «سبب إلزامي» | ReasonDialog (FrmMonthlySchedule.cs:1638، ولها overload معمم :1705) مقابل DecideDialog (FrmScheduleChanges.cs:391) | P3 | إعادة استخدام ReasonDialog المعمّم |
+| R-01 | تحديد الموظف من نص حر | FrmEmployeeSchedule.cs:200، FrmScheduleChanges.cs:647 مقابل EmployeeResolve.cs (المُوحَّد المستخدم في 6 نوافذ) | P2 (خطر اختيار موظف خاطئ بصمت) | نُفِّذ في Phase 3: النافذتان تُفوِّضان إلى EmployeeResolve.FromText (مع فحص المؤرشف في FrmScheduleChanges) |
+| R-02 | حلقة تلوين العطل الرسمية | FrmMonthlySchedule.cs:453–470، FrmEmployeeSchedule.cs:262–285 (متطابقة حرفيًا تقريبًا) | P3 | نُفِّذ في Phase 3: `PublicHolidayBLL.HolidayDays(year, month)` + استبدال الحلقتين |
+| R-03 | أسماء الأشهر/الأيام العربية | FrmMonthlySchedule.cs:22، FrmEmployeeSchedule.cs:185+193، ReportEngine.cs:1353 | P3 | نُفِّذ في Phase 3: `HR.Helpers/ArabicDates.cs` + حذف النسخ الثلاث + مرجع HR.Services→HR.Helpers |
+| R-04 | نافذة «سبب إلزامي» | ReasonDialog (FrmMonthlySchedule.cs:1638، ولها overload معمم :1705) مقابل DecideDialog (FrmScheduleChanges.cs:391) | P3 | نُفِّذ في Phase 3: ReasonDialog رُفع لمكوّن مشترك HR.UI/UI/ReasonDialog.cs وحُذف DecideDialog |
 | N-01 | دوال الـ Map في DAL | جميع ملفات DAL | مقبول | **لا يُلمس** (انظر §3) |
 
 لا يوجد تكرار في: اتصالات قاعدة البيانات (نقطة واحدة `Db.`)، تسجيل العمليات
@@ -136,7 +136,7 @@ expression trees) يعني: انعكاس أداء عند 1000+ موظف، خسا
 
 ---
 
-## 4. خطة التنفيذ (تُنفذ في Phase 3 الفعلية — لا في هذه المرحلة)
+## 4. خطة التنفيذ — **نُفِّذت بالكامل في Phase 3** (على فرع vibe/moderntime2-phase1-audit-5a98c5)
 
 1. R-01: تعديل `FrmEmployeeSchedule.ResolveEmployee` و
    `FrmScheduleChanges.CreateDialog.ResolveEmployee` للتفويض إلى

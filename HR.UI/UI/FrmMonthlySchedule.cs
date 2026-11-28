@@ -19,12 +19,6 @@ namespace HR.UI.UI
     /// </summary>
     public class FrmMonthlySchedule : Form
     {
-        private static readonly string[] MonthNames = new string[]
-        {
-            "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
-            "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"
-        };
-
         private NumericUpDown _numYear;
         private ComboBox _cboMonth;
         private ComboBox _cboDepartment;
@@ -107,7 +101,7 @@ namespace HR.UI.UI
             _cboMonth.Width = 110;
             for (int month = 1; month <= 12; month++)
             {
-                _cboMonth.Items.Add(month + " - " + MonthNames[month - 1]);
+                _cboMonth.Items.Add(month + " - " + ArabicDates.MonthName(month));
             }
             _cboMonth.SelectedIndex = DateTime.Today.Month - 1;
 
@@ -451,24 +445,8 @@ namespace HR.UI.UI
             _holidayDays = new HashSet<int>();
             try
             {
-                DateTime first = new DateTime(year, month, 1);
-                DateTime last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
-                foreach (PublicHoliday holiday in PublicHolidayBLL.List(first, last))
-                {
-                    if (holiday.HolidayDate == null)
-                    {
-                        continue;
-                    }
-                    DateTime date = holiday.HolidayDate.Value;
-                    if (date.Year == year && date.Month == month)
-                    {
-                        _holidayDays.Add(date.Day);
-                    }
-                    else if (holiday.IsRecurring == true && date.Month == month && date.Day <= DateTime.DaysInMonth(year, month))
-                    {
-                        _holidayDays.Add(date.Day);
-                    }
-                }
+                // Phase 3 (R-02): shared holiday-day set (explicit + recurring).
+                _holidayDays = PublicHolidayBLL.HolidayDays(year, month);
             }
             catch (Exception unexpected)
             {
@@ -561,7 +539,7 @@ namespace HR.UI.UI
                     });
                     DataGridViewComboBoxColumn dayColumn = new DataGridViewComboBoxColumn();
                     dayColumn.Name = "day" + day;
-                    dayColumn.HeaderText = day + "\n" + WeekdayAr(new DateTime(_data.Year, _data.Month, day).DayOfWeek);
+                    dayColumn.HeaderText = day + "\n" + ArabicDates.DayName(new DateTime(_data.Year, _data.Month, day).DayOfWeek);
                     dayColumn.DataSource = options;
                     dayColumn.DisplayMember = "ShiftCode";
                     dayColumn.ValueMember = "ShiftId";
@@ -794,28 +772,6 @@ namespace HR.UI.UI
                 copy[pair.Key] = new Dictionary<int, int>(pair.Value);
             }
             return copy;
-        }
-
-        /// <summary>Arabic weekday labels for the column headers.</summary>
-        private static string WeekdayAr(DayOfWeek dayOfWeek)
-        {
-            switch (dayOfWeek)
-            {
-                case DayOfWeek.Saturday:
-                    return "السبت";
-                case DayOfWeek.Sunday:
-                    return "الأحد";
-                case DayOfWeek.Monday:
-                    return "الاثنين";
-                case DayOfWeek.Tuesday:
-                    return "الثلاثاء";
-                case DayOfWeek.Wednesday:
-                    return "الأربعاء";
-                case DayOfWeek.Thursday:
-                    return "الخميس";
-                default:
-                    return "الجمعة";
-            }
         }
 
         /// <summary>Day number starting the operational week (Sch.RestDays-derived anchor)
@@ -1396,7 +1352,7 @@ namespace HR.UI.UI
                     monthHours += dayHours;
                     int rowIndex = grid.Rows.Add();
                     DataGridViewRow row = grid.Rows[rowIndex];
-                    row.Cells[0].Value = day + " " + WeekdayAr(new DateTime(_data.Year, _data.Month, day).DayOfWeek);
+                    row.Cells[0].Value = day + " " + ArabicDates.DayName(new DateTime(_data.Year, _data.Month, day).DayOfWeek);
                     row.Cells[1].Value = workers;
                     row.Cells[2].Value = rest;
                     row.Cells[3].Value = unscheduled;
@@ -1634,89 +1590,5 @@ namespace HR.UI.UI
             }
         }
 
-        /// <summary>Modal dialog collecting the mandatory unlock reason (rule 22).</summary>
-        private class ReasonDialog : Form
-        {
-            private TextBox _txtReason;
-            private Button _btnOk;
-            private Label _lblReason;
-            private bool _confirmed;
-
-            private ReasonDialog()
-            {
-                Theme.Apply(this);
-                Text = "سبب فتح الشهر المقفل";
-                ClientSize = new Size(440, 155);
-                StartPosition = FormStartPosition.CenterParent;
-                FormBorderStyle = FormBorderStyle.FixedDialog;
-                MinimizeBox = false;
-                MaximizeBox = false;
-                ShowInTaskbar = false;
-
-                _lblReason = new Label();
-                _lblReason.Text = "سبب فتح الشهر المقفل (إلزامي، يُسجَّل في سجل العمليات):";
-                _lblReason.Location = new Point(16, 14);
-                _lblReason.Size = new Size(408, 22);
-
-                _txtReason = new TextBox();
-                _txtReason.Location = new Point(16, 44);
-                _txtReason.Size = new Size(408, 26);
-                _txtReason.MaxLength = 300;
-
-                _btnOk = new Button();
-                _btnOk.Text = "فتح الشهر";
-                _btnOk.Location = new Point(294, 90);
-                _btnOk.Size = new Size(130, 32);
-                _btnOk.DialogResult = DialogResult.None;
-                _btnOk.Click += delegate
-                {
-                    if (string.IsNullOrWhiteSpace(_txtReason.Text))
-                    {
-                        Theme.ShowError("سبب الفتح إلزامي.");
-                        return;
-                    }
-                    _confirmed = true;
-                    Close();
-                };
-
-                Button btnCancel = new Button();
-                btnCancel.Text = "إلغاء";
-                btnCancel.Location = new Point(16, 90);
-                btnCancel.Size = new Size(130, 32);
-                btnCancel.DialogResult = DialogResult.Cancel;
-                btnCancel.Click += delegate { Close(); };
-
-                Controls.Add(_lblReason);
-                Controls.Add(_txtReason);
-                Controls.Add(_btnOk);
-                Controls.Add(btnCancel);
-                AcceptButton = _btnOk;
-                CancelButton = btnCancel;
-            }
-
-            /// <summary>Returns the trimmed reason, or null when cancelled.</summary>
-            public static string Show(IWin32Window owner)
-            {
-                return Show(owner, "سبب فتح الشهر المقفل",
-                    "سبب فتح الشهر المقفل (إلزامي، يُسجَّل في سجل العمليات):", "فتح الشهر");
-            }
-
-            /// <summary>Generalized mandatory-reason dialog (unlock / schedule rejection).</summary>
-            public static string Show(IWin32Window owner, string title, string labelText, string okText)
-            {
-                using (ReasonDialog dialog = new ReasonDialog())
-                {
-                    dialog.Text = title;
-                    dialog._lblReason.Text = labelText;
-                    dialog._btnOk.Text = okText;
-                    dialog.ShowDialog(owner);
-                    if (!dialog._confirmed)
-                    {
-                        return null;
-                    }
-                    return dialog._txtReason.Text.Trim();
-                }
-            }
-        }
     }
 }

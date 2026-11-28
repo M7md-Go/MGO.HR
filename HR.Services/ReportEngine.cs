@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using HR.DAL;
 using HR.Entities;
+using HR.Helpers;
 
 namespace HR.Services
 {
@@ -872,7 +873,7 @@ namespace HR.Services
                         ? "كل سنة — " + (row.HolidayDate == null ? "" : row.HolidayDate.Value.ToString("MM-dd"))
                         : (row.HolidayDate == null ? "" : row.HolidayDate.Value.ToString("yyyy-MM-dd")),
                     row.HolidayName,
-                    DayNameAr(row.HolidayDate ?? fromDate),
+                    ArabicDates.DayName((row.HolidayDate ?? fromDate).DayOfWeek),
                     row.IsRecurring == true ? "نعم" : "لا");
             }
             report.TotalsRow = TotalRow(report, rows.Count, 0, 0, "عدد العطل:", rows.Count.ToString());
@@ -1347,17 +1348,6 @@ namespace HR.Services
             if (changeType == "StatusChange") { return "تغيير حالة"; }
             if (changeType == "Archive") { return "أرشفة"; }
             return changeType ?? "";
-        }
-
-        /// <summary>Arabic weekday name.</summary>
-        private static string DayNameAr(DateTime date)
-        {
-            string[] names = new string[]
-            {
-                "الأحد", "الاثنين", "الثلاثاء",
-                "الأربعاء", "الخميس", "الجمعة", "السبت"
-            };
-            return names[(int)date.DayOfWeek];
         }
 
         /// <summary>Arabic label for attendance day statuses.</summary>

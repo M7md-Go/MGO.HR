@@ -20,6 +20,38 @@ namespace HR.BLL
             return PublicHolidayDAL.List(fromDate, toDate);
         }
 
+        /// <summary>
+        /// Phase 3 (R-02): shared day-number set of the official holidays of
+        /// one month (explicit dates inside the month + recurring definitions
+        /// whose month/day fall inside it). Replaces the two duplicated tint
+        /// loops in FrmMonthlySchedule and FrmEmployeeSchedule — a change to
+        /// the recurring-holiday rule now happens in exactly one place.
+        /// </summary>
+        public static HashSet<int> HolidayDays(int year, int month)
+        {
+            HashSet<int> days = new HashSet<int>();
+            DateTime first = new DateTime(year, month, 1);
+            DateTime last = new DateTime(year, month, DateTime.DaysInMonth(year, month));
+            foreach (PublicHoliday holiday in List(first, last))
+            {
+                if (holiday.HolidayDate == null)
+                {
+                    continue;
+                }
+                DateTime date = holiday.HolidayDate.Value;
+                if (date.Year == year && date.Month == month)
+                {
+                    days.Add(date.Day);
+                }
+                else if (holiday.IsRecurring == true && date.Month == month &&
+                    date.Day <= DateTime.DaysInMonth(year, month))
+                {
+                    days.Add(date.Day);
+                }
+            }
+            return days;
+        }
+
         public static PublicHoliday GetById(int holidayId)
         {
             return PublicHolidayDAL.GetById(holidayId);

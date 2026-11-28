@@ -259,7 +259,7 @@ namespace HR.UI.UI
                 string reason = null;
                 if (!approve)
                 {
-                    reason = DecideDialog.Show(this, "سبب رفض الطلب", "سبب الرفض (إلزامي):", "رفض الطلب");
+                    reason = ReasonDialog.Show(this, "سبب رفض الطلب", "سبب الرفض (إلزامي):", "رفض الطلب");
                     if (reason == null)
                     {
                         return;
@@ -385,76 +385,6 @@ namespace HR.UI.UI
                 return shift.ShiftCode + " (" + shift.ShiftName + ")";
             }
             return "#" + shiftId.Value;
-        }
-
-        /// <summary>Modal mandatory-reason input used for rejections.</summary>
-        private class DecideDialog : Form
-        {
-            private TextBox _txtReason;
-            private bool _confirmed;
-
-            private DecideDialog(string title, string labelText, string okText)
-            {
-                Theme.Apply(this);
-                Text = title;
-                ClientSize = new Size(440, 155);
-                StartPosition = FormStartPosition.CenterParent;
-                FormBorderStyle = FormBorderStyle.FixedDialog;
-                MinimizeBox = false;
-                MaximizeBox = false;
-                ShowInTaskbar = false;
-
-                Label lblReason = new Label();
-                lblReason.Text = labelText;
-                lblReason.Location = new Point(16, 14);
-                lblReason.Size = new Size(408, 22);
-
-                _txtReason = new TextBox();
-                _txtReason.Location = new Point(16, 44);
-                _txtReason.Size = new Size(408, 26);
-                _txtReason.MaxLength = 300;
-
-                Button btnOk = new Button();
-                btnOk.Text = okText;
-                btnOk.Location = new Point(294, 90);
-                btnOk.Size = new Size(130, 32);
-                btnOk.Click += delegate
-                {
-                    if (string.IsNullOrWhiteSpace(_txtReason.Text))
-                    {
-                        Theme.ShowError("السبب إلزامي.");
-                        return;
-                    }
-                    _confirmed = true;
-                    Close();
-                };
-
-                Button btnCancel = new Button();
-                btnCancel.Text = "إلغاء";
-                btnCancel.Location = new Point(16, 90);
-                btnCancel.Size = new Size(130, 32);
-                btnCancel.DialogResult = DialogResult.Cancel;
-
-                Controls.Add(lblReason);
-                Controls.Add(_txtReason);
-                Controls.Add(btnOk);
-                Controls.Add(btnCancel);
-                AcceptButton = btnOk;
-                CancelButton = btnCancel;
-            }
-
-            public static string Show(IWin32Window owner, string title, string labelText, string okText)
-            {
-                using (DecideDialog dialog = new DecideDialog(title, labelText, okText))
-                {
-                    dialog.ShowDialog(owner);
-                    if (!dialog._confirmed)
-                    {
-                        return null;
-                    }
-                    return dialog._txtReason.Text.Trim();
-                }
-            }
         }
 
         /// <summary>Modal creator for a balanced group of shift-change items.</summary>
@@ -644,27 +574,30 @@ namespace HR.UI.UI
                 }
             }
 
+            /// <summary>
+            /// Shared EmployeeResolve.FromText (Phase 3, R-01): exact code
+            /// first, unique name, explicit ambiguity error. Shift-change
+            /// requests target active staff only, so an archived match is
+            /// rejected here (preserving this window’s original rule) while
+            /// the shared resolver keeps its own general semantics.
+            /// </summary>
             private void ResolveEmployee()
             {
                 try
                 {
-                    string text = (_txtEmployee.Text ?? string.Empty).Trim();
-                    if (text.Length == 0)
+                    string resolveError;
+                    Employee resolved = EmployeeResolve.FromText(_txtEmployee.Text, out resolveError);
+                    if (resolved == null)
                     {
-                        Theme.ShowInfo("اكتب رقم الموظف أو اسمه أولاً.");
+                        Theme.ShowInfo(resolveError ?? "اكتب رقم الموظف أو اسمه أولاً.");
                         return;
                     }
-                    EmployeeSearchFilter filter = new EmployeeSearchFilter();
-                    filter.Text = text;
-                    filter.IncludeArchived = false;
-                    filter.PageSize = 1;
-                    List<Employee> matches = EmployeeBLL.Search(filter);
-                    if (matches.Count == 0)
+                    if (resolved.IsDeleted == true)
                     {
                         Theme.ShowInfo("لم يتم العثور على موظف مطابق.");
                         return;
                     }
-                    _employee = EmployeeBLL.GetById(matches[0].EmployeeId);
+                    _employee = EmployeeBLL.GetById(resolved.EmployeeId);
                     _lblEmployeeName.Text = _employee.EmployeeCode + " - " + _employee.FullNameAr;
                 }
                 catch (BusinessException expected)
