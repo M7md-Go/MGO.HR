@@ -193,7 +193,7 @@ namespace HR.DAL
         /// their engine-owned exceptions are NOT cleared — manual-day exceptions survive recalculation.</param>
         public static void WriteEngineResults(List<Attendance> attendanceRows,
             List<AttendanceException> exceptions, List<Overtime> overtimeRows, List<string> processedKeys,
-            List<string> preservedKeys)
+            HashSet<string> preservedKeys)
         {
             using (OleDbConnection connection = Db.CreateConnection())
             using (OleDbTransaction transaction = connection.BeginTransaction())
